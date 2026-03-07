@@ -26,6 +26,11 @@ ADD COLUMN IF NOT EXISTS summary_details JSONB NOT NULL DEFAULT '{}'::JSONB;
 
 
 
+def _apply_runtime_migrations(cursor) -> None:
+    cursor.execute(SUMMARY_DETAILS_MIGRATION)
+
+
+
 def bootstrap_database() -> tuple[bool, str]:
     settings = get_settings()
     if not settings.database_url:
@@ -37,7 +42,7 @@ def bootstrap_database() -> tuple[bool, str]:
     with get_connection() as connection:
         with connection.cursor() as cursor:
             cursor.execute(schema_sql)
-            cursor.execute(SUMMARY_DETAILS_MIGRATION)
+            _apply_runtime_migrations(cursor)
             connection.commit()
 
             cursor.execute("SELECT COUNT(*) AS total FROM series_index")
@@ -90,6 +95,8 @@ def save_analysis(result: AnalysisResult) -> StoredAnalysis:
     with get_connection() as connection:
         try:
             with connection.cursor() as cursor:
+                _apply_runtime_migrations(cursor)
+
                 if result.series_name:
                     cursor.execute(
                         "SELECT upsert_series(%s, %s, %s)",
@@ -283,6 +290,7 @@ def list_analyses(filters: Optional[HistoryFilters] = None) -> list[HistoryListI
 def load_analysis(analysis_id: str) -> StoredAnalysis:
     with get_connection() as connection:
         with connection.cursor() as cursor:
+            _apply_runtime_migrations(cursor)
             cursor.execute(
                 """
                 SELECT analysis_id, batch_label, domain_tag, series_name, run_sequence,
@@ -423,3 +431,4 @@ def export_analysis_csv(analysis_id: str) -> str:
 
 def _database_ready() -> bool:
     return bool(get_settings().database_url)
+

@@ -175,7 +175,7 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(result.run_sequence, 3)
         self.assertEqual(stored.run_sequence, 3)
         self.assertTrue(connection.committed)
-        insert_statement = cursor.executed[2][0]
+        insert_statement = next(query for query, _params in cursor.executed if "INSERT INTO analysis_results" in query)
         self.assertIn("summary_details", insert_statement)
 
     def test_delete_analysis_removes_selected_run(self):
@@ -222,3 +222,4 @@ class StorageTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
