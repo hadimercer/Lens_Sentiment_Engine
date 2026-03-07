@@ -16,7 +16,9 @@ from lens.ui.runtime import (
     render_page_masthead,
     render_section_header,
     render_sop_panel,
+    render_status_banner,
 )
+
 
 
 def render_page() -> None:
@@ -43,9 +45,9 @@ def render_page() -> None:
                 "meta": "Large runs above this threshold require an explicit analyst acknowledgement.",
             },
             {
-                "label": "Retry limit",
-                "value": f"{settings.retry_count}",
-                "meta": "Malformed or timed-out OpenAI responses are retried up to this fixed limit.",
+                "label": "Default model",
+                "value": settings.openai_model,
+                "meta": "The runtime default comes from OPENAI_MODEL and can be overridden only after admin unlock.",
             },
         ]
     )
@@ -62,8 +64,8 @@ def render_page() -> None:
             [
                 "Choose the input method and validate the batch before touching metadata.",
                 "Review the preview carefully to confirm the right text field and timestamp behavior were detected.",
-                "Add the batch label, optional series name, and context profile before running the pipeline.",
-                "Check cost and size warnings, then execute the run or keep the page in Demo Mode for walkthroughs.",
+                "Unlock live access if required, then add the batch label, optional series name, and context profile.",
+                "Check cost, size, and active-model warnings before running the pipeline.",
             ],
             note="In demos, you can explain the full process even when live execution is disabled.",
         )
@@ -124,97 +126,165 @@ def render_page() -> None:
                 value=st.session_state.preview_confirmed,
             )
 
-    if validated_batch is not None and st.session_state.preview_confirmed:
-        render_section_header("Step 3 - Add analysis context", "Metadata and context turn a generic sentiment run into a business-specific analysis record.", eyebrow="Context")
-        series_names = get_series_names()
-        meta_col, context_col = st.columns([1.05, 1.0])
-        with meta_col:
-            batch_label = st.text_input("Batch label", max_chars=80, help="A human-readable run label such as NPS Q1 2026.")
-            domain_tag = st.selectbox("Domain tag", options=["", "cx", "hr", "ops"])
-            series_name = st.text_input("Series name (optional)", max_chars=100)
-            if series_name:
-                matching = [name for name in series_names if series_name.lower() in name.lower()][:5]
-                if matching:
-                    st.caption("Matching series: " + ", ".join(matching))
-        with context_col:
-            with st.expander("Context profile", expanded=True):
-                org_name = st.text_input("Organisation name", max_chars=100)
-                industry = st.text_input("Industry", max_chars=80)
-                department = st.text_input("Department or team", max_chars=100)
-                reporting_period = st.text_input("Reporting period", max_chars=60)
-                situational_notes = st.text_area("Situational notes", max_chars=500)
+    if validated_batch is None or not st.session_state.preview_confirmed:
+        current_result = st.session_state.current_result
+        if current_result is not None:
+            render_section_header("Analysis output", "Once the run completes, review the dashboard as an integrated operating surface rather than a collection of independent widgets.", eyebrow="Results")
+            render_dashboard(StoredAnalysis.from_analysis_result(current_result), historical=False)
+        return
 
-        context = ContextProfile(
-            org_name=org_name or None,
-            industry=industry or None,
-            department=department or None,
-            reporting_period=reporting_period or None,
-            situational_notes=situational_notes or None,
+    access_ready = _render_live_access_controls(settings)
+    if not access_ready:
+        current_result = st.session_state.current_result
+        if current_result is not None:
+            render_section_header("Analysis output", "Once the run completes, review the dashboard as an integrated operating surface rather than a collection of independent widgets.", eyebrow="Results")
+            render_dashboard(StoredAnalysis.from_analysis_result(current_result), historical=False)
+        return
+
+    render_section_header("Step 4 - Add analysis context", "Metadata and context turn a generic sentiment run into a business-specific analysis record.", eyebrow="Context")
+    series_names = get_series_names()
+    meta_col, context_col = st.columns([1.05, 1.0])
+    with meta_col:
+        batch_label = st.text_input("Batch label", max_chars=80, help="A human-readable run label such as NPS Q1 2026.")
+        domain_tag = st.selectbox("Domain tag", options=["", "cx", "hr", "ops"])
+        series_name = st.text_input("Series name (optional)", max_chars=100)
+        if series_name:
+            matching = [name for name in series_names if series_name.lower() in name.lower()][:5]
+            if matching:
+                st.caption("Matching series: " + ", ".join(matching))
+    with context_col:
+        with st.expander("Context profile", expanded=True):
+            org_name = st.text_input("Organisation name", max_chars=100)
+            industry = st.text_input("Industry", max_chars=80)
+            department = st.text_input("Department or team", max_chars=100)
+            reporting_period = st.text_input("Reporting period", max_chars=60)
+            situational_notes = st.text_area("Situational notes", max_chars=500)
+
+    context = ContextProfile(
+        org_name=org_name or None,
+        industry=industry or None,
+        department=department or None,
+        reporting_period=reporting_period or None,
+        situational_notes=situational_notes or None,
+    )
+
+    render_section_header("Step 5 - Run readiness", "Lens shows the expected API footprint, active model, and any extra acknowledgements required before execution.", eyebrow="Execution")
+    selected_model = st.session_state.selected_model or settings.openai_model
+    estimated_calls = estimate_api_calls(validated_batch.valid_record_count)
+    st.info(f"Estimated API calls for this run: {estimated_calls}")
+    st.caption(f"Active model for this session: {selected_model}")
+
+    if validated_batch.valid_record_count >= settings.warn_batch_size:
+        st.warning(f"This batch has {validated_batch.valid_record_count} records. Large runs can be slow and expensive on the public deployment.")
+    extra_confirmed = True
+    if validated_batch.valid_record_count >= settings.extra_confirm_batch_size:
+        extra_confirmed = st.checkbox(
+            f"I understand this batch exceeds {settings.extra_confirm_batch_size} records and may incur higher API usage.",
+            value=False,
         )
 
-        render_section_header("Step 4 - Run readiness", "Lens shows the expected API footprint and any extra acknowledgements required before execution.", eyebrow="Execution")
-        estimated_calls = estimate_api_calls(validated_batch.valid_record_count)
-        st.info(f"Estimated API calls for this run: {estimated_calls}")
-        if validated_batch.valid_record_count >= settings.warn_batch_size:
-            st.warning(f"This batch has {validated_batch.valid_record_count} records. Large runs can be slow and expensive on the public deployment.")
-        extra_confirmed = True
-        if validated_batch.valid_record_count >= settings.extra_confirm_batch_size:
-            extra_confirmed = st.checkbox(
-                f"I understand this batch exceeds {settings.extra_confirm_batch_size} records and may incur higher API usage.",
-                value=False,
+    prior_cycle = get_prior_cycle(series_name.strip() or None)
+    if prior_cycle:
+        st.caption(f"Prior cycle detected: {prior_cycle.batch_label} (run {prior_cycle.run_sequence})")
+
+    run_disabled = (
+        st.session_state.pipeline_running
+        or settings.app_mode == "demo"
+        or not batch_label.strip()
+        or not extra_confirmed
+        or (settings.admin_auth_enabled and not st.session_state.admin_unlocked)
+    )
+    progress_slot = st.empty()
+
+    if settings.app_mode == "demo":
+        st.info("Live execution is disabled in demo mode because OPENAI_API_KEY is not configured.")
+
+    if st.button("Run pipeline", disabled=run_disabled, key="run_pipeline_button"):
+        batch_input = build_batch_input(
+            validated_batch,
+            batch_label=batch_label.strip(),
+            domain_tag=domain_tag or None,
+            context=context,
+            series_name=series_name.strip() or None,
+            prior_cycle=prior_cycle,
+        )
+        st.session_state.pipeline_running = True
+        st.session_state.current_result = None
+
+        progress_bar = st.progress(0)
+
+        def handle_progress(stage: str, processed: int, total: int) -> None:
+            total = max(total, 1)
+            progress_bar.progress(min(processed / total, 1.0))
+            progress_slot.info(f"{stage}: {processed}/{total}")
+
+        try:
+            from lens.pipeline import run_pipeline
+
+            result = run_pipeline(
+                batch=batch_input,
+                api_key=settings.openai_api_key or "",
+                progress_callback=handle_progress,
+                model=selected_model,
             )
-
-        prior_cycle = get_prior_cycle(series_name.strip() or None)
-        if prior_cycle:
-            st.caption(f"Prior cycle detected: {prior_cycle.batch_label} (run {prior_cycle.run_sequence})")
-
-        run_disabled = st.session_state.pipeline_running or settings.app_mode == "demo" or not batch_label.strip() or not extra_confirmed
-        progress_slot = st.empty()
-
-        if settings.app_mode == "demo":
-            st.info("Live execution is disabled in demo mode because OPENAI_API_KEY is not configured.")
-
-        if st.button("Run pipeline", disabled=run_disabled, key="run_pipeline_button"):
-            batch_input = build_batch_input(
-                validated_batch,
-                batch_label=batch_label.strip(),
-                domain_tag=domain_tag or None,
-                context=context,
-                series_name=series_name.strip() or None,
-                prior_cycle=prior_cycle,
-            )
-            st.session_state.pipeline_running = True
-            st.session_state.current_result = None
-
-            progress_bar = st.progress(0)
-
-            def handle_progress(stage: str, processed: int, total: int) -> None:
-                total = max(total, 1)
-                progress_bar.progress(min(processed / total, 1.0))
-                progress_slot.info(f"{stage}: {processed}/{total}")
-
+            st.session_state.current_result = result
             try:
-                from lens.pipeline import run_pipeline
-
-                result = run_pipeline(
-                    batch=batch_input,
-                    api_key=settings.openai_api_key or "",
-                    progress_callback=handle_progress,
-                )
-                st.session_state.current_result = result
-                try:
-                    stored = save_analysis(result)
-                    st.session_state.loaded_analysis = stored
-                    st.success("Analysis saved to history.")
-                except Exception as error:
-                    st.session_state.pending_save_result = result
-                    st.warning(f"Analysis completed but saving failed. You can retry saving without re-running. Error: {error}")
+                stored = save_analysis(result)
+                st.session_state.loaded_analysis = stored
+                st.success("Analysis saved to history.")
             except Exception as error:
-                st.error(f"Pipeline run failed: {error}")
-            finally:
-                st.session_state.pipeline_running = False
+                st.session_state.pending_save_result = result
+                st.warning(f"Analysis completed but saving failed. You can retry saving without re-running. Error: {error}")
+        except Exception as error:
+            st.error(f"Pipeline run failed: {error}")
+        finally:
+            st.session_state.pipeline_running = False
 
     current_result = st.session_state.current_result
     if current_result is not None:
         render_section_header("Analysis output", "Once the run completes, review the dashboard as an integrated operating surface rather than a collection of independent widgets.", eyebrow="Results")
         render_dashboard(StoredAnalysis.from_analysis_result(current_result), historical=False)
+
+
+
+def _render_live_access_controls(settings) -> bool:
+    render_section_header("Step 3 - Live run access", "Live runs can be locked behind an admin password so the public deployment cannot consume API budget freely.", eyebrow="Access")
+
+    if settings.app_mode == "demo":
+        render_status_banner("demo", "Demo walkthrough", "Live execution is unavailable in Demo Mode. You can still review the full workflow and historical outputs.")
+        st.session_state.admin_unlocked = False
+        st.session_state.selected_model = settings.openai_model
+        return True
+
+    if not settings.admin_auth_enabled:
+        render_status_banner("ok", "Live run gate disabled", "LENS_ADMIN_PASSWORD is not configured, so live execution remains open in this deployment. The environment default model will be used.")
+        st.session_state.selected_model = settings.openai_model
+        return True
+
+    if st.session_state.admin_unlocked:
+        render_status_banner("ok", "Admin unlocked", "This browser session can execute live runs. The model selector below only affects the current session.")
+        selector_index = list(settings.allowed_models).index(st.session_state.selected_model)
+        st.selectbox(
+            "Live run model",
+            options=list(settings.allowed_models),
+            index=selector_index,
+            key="selected_model",
+            help="This override is session-scoped and does not change the deployment default.",
+        )
+        if st.button("Lock again", key="lock_live_run_access"):
+            st.session_state.admin_unlocked = False
+            st.session_state.selected_model = settings.openai_model
+            st.rerun()
+        return True
+
+    password = st.text_input("Admin password", type="password", key="admin_password_input", help="Required for live runs on the public deployment.")
+    if st.button("Unlock live runs", key="unlock_live_runs"):
+        if password == settings.admin_run_password:
+            st.session_state.admin_unlocked = True
+            st.session_state.selected_model = settings.openai_model
+            st.session_state.admin_password_input = ""
+            st.success("Live run access unlocked for this session.")
+            st.rerun()
+        else:
+            st.error("Incorrect password. Live execution remains locked.")
+    return False

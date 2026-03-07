@@ -22,11 +22,13 @@ from .prompts import (
 logger = logging.getLogger(__name__)
 
 
+
 def run_pipeline(
     batch: BatchInput,
     api_key: str,
     progress_callback: Optional[Callable[[str, int, int], None]] = None,
     provider: Optional[LLMProvider] = None,
+    model: str | None = None,
 ) -> AnalysisResult:
     start_time = time.time()
 
@@ -36,6 +38,7 @@ def run_pipeline(
 
     progress("Building prompts", 0, len(batch.records))
     settings = get_settings()
+    active_model = model or settings.openai_model
     system_prompt = build_system_prompt(
         context=batch.context,
         prior_cycle=batch.prior_cycle,
@@ -46,6 +49,7 @@ def run_pipeline(
         system_prompt=system_prompt,
         retry_count=settings.retry_count,
         provider=provider,
+        model=active_model,
     )
 
     progress("Running sentiment analysis", 0, len(batch.records))
@@ -154,6 +158,7 @@ def run_pipeline(
     return result
 
 
+
 def _compute_sentiment_split(scored_records: list[RecordResult]) -> dict:
     if not scored_records:
         return {"positive": 0.0, "neutral": 0.0, "negative": 0.0}
@@ -168,6 +173,7 @@ def _compute_sentiment_split(scored_records: list[RecordResult]) -> dict:
         "neutral": round(counts["neutral"] / total * 100, 1),
         "negative": round(counts["negative"] / total * 100, 1),
     }
+
 
 
 def _assign_themes_to_records(records: list[RecordResult], themes: list[ThemeResult]) -> None:

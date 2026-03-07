@@ -1,5 +1,6 @@
 ﻿import json
 import unittest
+from unittest.mock import patch
 
 from lens.pipeline.api_client import APIClient, LLMProvider
 from lens.pipeline.models import BatchInput, ContextProfile, PriorCycleContext
@@ -30,6 +31,66 @@ class PipelineTests(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertEqual(result["sentiment_label"], "positive")
         self.assertEqual(client.call_count, 2)
+
+    def test_api_client_uses_env_default_model_when_not_overridden(self):
+        captured = {}
+
+        class CapturingProvider:
+            def __init__(self, api_key: str, model: str):
+                captured["api_key"] = api_key
+                captured["model"] = model
+
+            def complete(self, *, system_prompt: str, user_message: str, max_tokens: int, context_tag: str) -> str:
+                return "{}"
+
+        fake_settings = type("FakeSettings", (), {"openai_model": "gpt-5-mini"})()
+        with patch("lens.pipeline.api_client.get_settings", return_value=fake_settings), patch(
+            "lens.pipeline.api_client.OpenAIChatProvider", CapturingProvider
+        ):
+            client = APIClient(api_key="test", system_prompt="system")
+
+        self.assertEqual(client.model, "gpt-5-mini")
+        self.assertEqual(captured["model"], "gpt-5-mini")
+
+    def test_run_pipeline_passes_selected_model_to_api_client(self):
+        captured = {}
+
+        class CapturingClient:
+            def __init__(self, *, api_key, system_prompt, retry_count, provider=None, model=None):
+                captured["model"] = model
+                self.call_count = 4
+
+            def score_record(self, prompt: str, record_index: int):
+                return {"sentiment_label": "positive", "confidence_score": 0.9, "reasoning": "Positive tone."}
+
+            def extract_themes(self, prompt: str):
+                return [
+                    {
+                        "label": "support quality",
+                        "frequency": 1,
+                        "dominant_sentiment": "positive",
+                        "representative_quotes": ["Support was quick"],
+                    }
+                ]
+
+            def generate_summary(self, prompt: str):
+                return "Positive summary"
+
+        batch = BatchInput(
+            batch_label="Demo batch",
+            domain_tag="cx",
+            records=["Support was quick"],
+            timestamps=None,
+            context=ContextProfile(org_name="Meridian"),
+            series_name=None,
+            prior_cycle=None,
+        )
+
+        with patch("lens.pipeline.runner.APIClient", CapturingClient):
+            result = run_pipeline(batch=batch, api_key="test", model="gpt-4o-mini")
+
+        self.assertEqual(captured["model"], "gpt-4o-mini")
+        self.assertEqual(result.record_count, 1)
 
     def test_run_pipeline_builds_analysis_result(self):
         provider = FakeProvider([

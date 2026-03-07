@@ -40,10 +40,11 @@ TOKENS = {
 }
 
 
+
 def prepare_app(title: str = "Lens") -> tuple[bool, str]:
     settings = get_settings()
     st.set_page_config(page_title=title, layout="wide", page_icon=":material/analytics:", initial_sidebar_state="expanded")
-    init_session_state(settings.app_mode)
+    init_session_state(settings)
     apply_theme()
 
     if "bootstrap_status" not in st.session_state:
@@ -54,6 +55,7 @@ def prepare_app(title: str = "Lens") -> tuple[bool, str]:
         st.session_state.bootstrap_status = (ok, message)
 
     return st.session_state.bootstrap_status
+
 
 
 def apply_theme() -> None:
@@ -93,6 +95,9 @@ def apply_theme() -> None:
       [data-testid="stHeader"] {{
         background: rgba(9, 19, 26, 0.72);
       }}
+      [data-testid="stAppViewContainer"] > .main {{
+        padding-top: 1.4rem;
+      }}
       [data-testid="stSidebar"] > div:first-child {{
         background: linear-gradient(180deg, rgba(17,34,44,0.96) 0%, rgba(13,27,36,0.98) 100%);
         border-right: 1px solid {TOKENS['border']};
@@ -101,7 +106,7 @@ def apply_theme() -> None:
       [data-testid="stSidebar"] * {{ color: {TOKENS['text']}; }}
       [data-testid="stMetricLabel"], [data-testid="stMetricValue"] {{ color: {TOKENS['text']}; }}
       [data-testid="stCaptionContainer"], .stCaption {{ color: {TOKENS['text_soft']}; }}
-      .block-container {{ padding-top: 1.2rem; padding-bottom: 3rem; max-width: 1520px; }}
+      .block-container {{ padding-top: 4.85rem; padding-bottom: 3rem; max-width: 1520px; }}
       .ops-sidebar-brand {{
         padding: 1rem 1rem 0.9rem 1rem;
         border-radius: {TOKENS['radius_l']};
@@ -220,9 +225,14 @@ def apply_theme() -> None:
         border-color: {TOKENS['border_strong']};
         background: linear-gradient(180deg, rgba(54,194,180,0.18), rgba(17,34,44,0.92));
       }}
+      @media (max-width: 900px) {{
+        .block-container {{ padding-top: 5.6rem; }}
+        [data-testid="stAppViewContainer"] > .main {{ padding-top: 1.8rem; }}
+      }}
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
+
 
 
 def render_sidebar_branding() -> None:
@@ -240,6 +250,7 @@ def render_sidebar_branding() -> None:
         """,
         unsafe_allow_html=True,
     )
+
 
 
 def render_sidebar_navigation(current_page: str, pages: dict[str, object]) -> None:
@@ -261,6 +272,7 @@ def render_sidebar_navigation(current_page: str, pages: dict[str, object]) -> No
     )
     if selected != current_page:
         st.switch_page(pages[selected])
+
 
 
 def render_page_masthead(title: str, objective: str, what_matters: str, badge: str | None = None) -> None:
@@ -286,6 +298,7 @@ def render_page_masthead(title: str, objective: str, what_matters: str, badge: s
     )
 
 
+
 def render_section_header(title: str, description: str, eyebrow: str = "Analysis") -> None:
     st.markdown(
         f"""
@@ -299,6 +312,7 @@ def render_section_header(title: str, description: str, eyebrow: str = "Analysis
         """,
         unsafe_allow_html=True,
     )
+
 
 
 def render_metric_strip(metrics: list[dict[str, str]]) -> None:
@@ -323,6 +337,7 @@ def render_metric_strip(metrics: list[dict[str, str]]) -> None:
     st.markdown('</div>', unsafe_allow_html=True)
 
 
+
 def render_sop_panel(title: str, steps: list[str], *, note: str | None = None) -> None:
     steps_html = "".join(f"<li>{html.escape(step)}</li>" for step in steps)
     note_html = f"<p><strong>Tip:</strong> {html.escape(note)}</p>" if note else ""
@@ -338,6 +353,7 @@ def render_sop_panel(title: str, steps: list[str], *, note: str | None = None) -
     )
 
 
+
 def render_note_panel(title: str, body: str) -> None:
     st.markdown(
         f"""
@@ -348,6 +364,7 @@ def render_note_panel(title: str, body: str) -> None:
         """,
         unsafe_allow_html=True,
     )
+
 
 
 def render_status_banner(kind: str, title: str, body: str) -> None:
@@ -362,6 +379,7 @@ def render_status_banner(kind: str, title: str, body: str) -> None:
     )
 
 
+
 def render_mode_banner() -> None:
     settings = get_settings()
     if settings.app_mode == "demo":
@@ -370,11 +388,13 @@ def render_mode_banner() -> None:
         render_status_banner("live", "Live mode is active", "Uploads and OpenAI-powered analysis runs are enabled for this session.")
 
 
+
 def render_bootstrap_status(ok: bool, message: str) -> None:
     if ok:
         render_status_banner("ok", "Database status", message)
     else:
         render_status_banner("error", "Database status", message)
+
 
 
 def render_empty_state(message: str) -> None:

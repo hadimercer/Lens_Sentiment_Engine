@@ -8,9 +8,10 @@ import logging
 import time
 from typing import Optional
 
+from lens.config import get_settings
+
 logger = logging.getLogger(__name__)
 
-OPENAI_MODEL = "gpt-4o-mini"
 SENTIMENT_MAX_TOKENS = 120
 THEME_MAX_TOKENS = 1200
 SUMMARY_MAX_TOKENS = 300
@@ -35,7 +36,7 @@ class LLMProvider(ABC):
 
 
 class OpenAIChatProvider(LLMProvider):
-    def __init__(self, api_key: str, model: str = OPENAI_MODEL):
+    def __init__(self, api_key: str, model: str):
         try:
             from openai import OpenAI as OpenAIClient
         except ImportError as error:
@@ -79,11 +80,13 @@ class APIClient:
         retry_count: int = 2,
         retry_delay_seconds: float = 1.5,
         provider: Optional[LLMProvider] = None,
+        model: str | None = None,
     ):
         self.system_prompt = system_prompt
         self.retry_count = retry_count
         self.retry_delay_seconds = retry_delay_seconds
-        self.provider = provider or OpenAIChatProvider(api_key=api_key)
+        self.model = model or get_settings().openai_model
+        self.provider = provider or OpenAIChatProvider(api_key=api_key, model=self.model)
         self._call_count = 0
 
     @property
