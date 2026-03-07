@@ -282,9 +282,9 @@ def _render_live_access_controls(settings) -> bool:
         if password == settings.admin_run_password:
             st.session_state.admin_unlocked = True
             st.session_state.selected_model = settings.openai_model
-            st.session_state.admin_password_input = ""
             st.success("Live run access unlocked for this session.")
             st.rerun()
         else:
             st.error("Incorrect password. Live execution remains locked.")
     return False
+
