@@ -31,13 +31,18 @@ def _apply_runtime_migrations(cursor) -> None:
 
 
 
+def _read_sql_file(path: str | Path) -> str:
+    return Path(path).read_text(encoding="utf-8-sig")
+
+
+
 def bootstrap_database() -> tuple[bool, str]:
     settings = get_settings()
     if not settings.database_url:
         return False, "DATABASE_URL is not configured. Demo history is unavailable until the database is configured."
 
-    schema_sql = Path(settings.schema_path).read_text(encoding="utf-8")
-    seed_sql = Path(settings.seed_path).read_text(encoding="utf-8")
+    schema_sql = _read_sql_file(settings.schema_path)
+    seed_sql = _read_sql_file(settings.seed_path)
 
     with get_connection() as connection:
         with connection.cursor() as cursor:
