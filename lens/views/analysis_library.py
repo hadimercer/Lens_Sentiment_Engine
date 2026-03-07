@@ -86,8 +86,6 @@ def render_page() -> None:
             "Loading a stored run rehydrates the saved result surface. It does not call the model again, and it does not alter the historical record.",
         )
 
-    _render_delete_controls(settings, selected_item.analysis_id)
-
     loaded_analysis = st.session_state.loaded_analysis
     if loaded_analysis is not None:
         render_section_header("Stored analysis dashboard", "Review the reopened result and export the record-level CSV if you need downstream reporting output.", eyebrow="Evidence")
@@ -99,39 +97,74 @@ def render_page() -> None:
             file_name=f"{loaded_analysis.batch_label}_{loaded_analysis.analysis_id[:8]}_export.csv",
             mime="text/csv",
         )
+        _render_delete_controls(settings, loaded_analysis.analysis_id)
 
 
 
-def _render_delete_controls(settings, selected_analysis_id: str) -> None:
-    if settings.app_mode != "live" or not settings.admin_auth_enabled or not st.session_state.admin_unlocked:
-        return
+def _render_delete_controls(settings, loaded_analysis_id: str) -> None:
+    with st.expander("Admin cleanup", expanded=False):
+        if settings.app_mode != "live":
+            render_status_banner(
+                "demo",
+                "Cleanup unavailable",
+                "Destructive cleanup is unavailable in Demo Mode.",
+            )
+            return
 
-    render_section_header(
-        "Admin cleanup",
-        "Delete a mistaken or duplicate run from the historical library. This is a hard delete from history and should be used carefully.",
-        eyebrow="Admin",
-    )
-    render_status_banner(
-        "error",
-        "Destructive action",
-        "Deleting a run removes it from the library. Batch records and context are deleted with it, while pipeline logs remain for audit history.",
-    )
+        if not settings.admin_auth_enabled:
+            render_status_banner(
+                "ok",
+                "Cleanup unavailable",
+                "Admin cleanup is not enabled for this deployment because LENS_ADMIN_PASSWORD is not configured.",
+            )
+            return
 
-    confirm = st.checkbox(
-        "I understand this permanently deletes the selected analysis from the library.",
-        key=f"confirm_delete_{selected_analysis_id}",
-    )
-    if st.button("Delete selected analysis", key=f"delete_analysis_{selected_analysis_id}", disabled=not confirm):
-        try:
-            delete_analysis(selected_analysis_id)
-            if st.session_state.loaded_analysis and st.session_state.loaded_analysis.analysis_id == selected_analysis_id:
-                st.session_state.loaded_analysis = None
-            if st.session_state.get("library_selected_analysis_id") == selected_analysis_id:
-                st.session_state.library_selected_analysis_id = None
-            st.success("Selected analysis deleted successfully.")
-            st.rerun()
-        except Exception as error:
-            st.error(f"Delete failed: {error}")
+        if not st.session_state.admin_unlocked:
+            render_note_panel(
+                "Admin access required",
+                "Enter the admin password to unlock cleanup controls for this session.",
+            )
+            password = st.text_input(
+                "Admin password",
+                type="password",
+                key="library_admin_password_input",
+                help="Required to unlock destructive cleanup controls.",
+            )
+            if st.button("Unlock admin cleanup", key="unlock_library_admin"):
+                if password == settings.admin_run_password:
+                    st.session_state.admin_unlocked = True
+                    st.success("Admin cleanup unlocked for this session.")
+                    st.rerun()
+                else:
+                    st.error("Incorrect password. Cleanup remains locked.")
+            return
+
+        render_section_header(
+            "Admin cleanup",
+            "Delete a mistaken or duplicate run from the historical library. This is a hard delete from history and should be used carefully.",
+            eyebrow="Admin",
+        )
+        render_status_banner(
+            "error",
+            "Destructive action",
+            "Deleting a run removes it from the library. Batch records and context are deleted with it, while pipeline logs remain for audit history.",
+        )
+
+        confirm = st.checkbox(
+            "I understand this permanently deletes the loaded analysis from the library.",
+            key=f"confirm_delete_{loaded_analysis_id}",
+        )
+        if st.button("Delete selected analysis", key=f"delete_analysis_{loaded_analysis_id}", disabled=not confirm):
+            try:
+                delete_analysis(loaded_analysis_id)
+                if st.session_state.loaded_analysis and st.session_state.loaded_analysis.analysis_id == loaded_analysis_id:
+                    st.session_state.loaded_analysis = None
+                if st.session_state.get("library_selected_analysis_id") == loaded_analysis_id:
+                    st.session_state.library_selected_analysis_id = None
+                st.success("Selected analysis deleted successfully.")
+                st.rerun()
+            except Exception as error:
+                st.error(f"Delete failed: {error}")
 
 
 
