@@ -5,7 +5,7 @@ from pathlib import Path
 
 from lens.pipeline.models import AnalysisResult, ContextProfile, RecordResult, ThemeResult
 from lens.storage.models import StoredAnalysis
-from lens.storage.service import bootstrap_database, save_analysis
+from lens.storage.service import bootstrap_database, delete_analysis, save_analysis
 
 
 class FakeCursor:
@@ -17,7 +17,9 @@ class FakeCursor:
         self.executed.append((str(query), params))
 
     def fetchone(self):
-        return self.fetch_results.pop(0)
+        if self.fetch_results:
+            return self.fetch_results.pop(0)
+        return None
 
     def fetchall(self):
         return []
@@ -168,6 +170,47 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(result.run_sequence, 3)
         self.assertEqual(stored.run_sequence, 3)
         self.assertTrue(connection.committed)
+
+    def test_delete_analysis_removes_selected_run(self):
+        from lens.storage import service
+
+        cursor = FakeCursor(fetch_results=[{"analysis_id": "analysis-1"}])
+        connection = FakeConnection(cursor)
+
+        @contextmanager
+        def fake_get_connection():
+            yield connection
+
+        original_get_connection = service.get_connection
+        service.get_connection = fake_get_connection
+        try:
+            delete_analysis("analysis-1")
+        finally:
+            service.get_connection = original_get_connection
+
+        self.assertTrue(connection.committed)
+        self.assertIn("DELETE FROM analysis_results", cursor.executed[1][0])
+        self.assertEqual(cursor.executed[1][1], ("analysis-1",))
+
+    def test_delete_analysis_raises_when_run_missing(self):
+        from lens.storage import service
+
+        cursor = FakeCursor(fetch_results=[None])
+        connection = FakeConnection(cursor)
+
+        @contextmanager
+        def fake_get_connection():
+            yield connection
+
+        original_get_connection = service.get_connection
+        service.get_connection = fake_get_connection
+        try:
+            with self.assertRaises(ValueError):
+                delete_analysis("missing")
+        finally:
+            service.get_connection = original_get_connection
+
+        self.assertTrue(connection.rolled_back)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import csv
 import io
-import json
 from datetime import datetime, time
 from pathlib import Path
 from typing import Optional
@@ -18,6 +17,7 @@ from lens.pipeline.anomaly import run_anomaly_detection
 from lens.pipeline.models import AnalysisResult, ContextProfile, PriorCycleContext, ThemeResult
 
 from .models import HistoryFilters, HistoryListItem, StoredAnalysis, StoredRecord
+
 
 
 def bootstrap_database() -> tuple[bool, str]:
@@ -43,6 +43,7 @@ def bootstrap_database() -> tuple[bool, str]:
     return True, "Database already initialized."
 
 
+
 def get_series_names() -> list[str]:
     if not _database_ready():
         return []
@@ -50,6 +51,7 @@ def get_series_names() -> list[str]:
         with connection.cursor() as cursor:
             cursor.execute("SELECT series_name FROM series_index ORDER BY series_name ASC")
             return [row["series_name"] for row in cursor.fetchall()]
+
 
 
 def get_prior_cycle(series_name: str | None) -> Optional[PriorCycleContext]:
@@ -74,6 +76,7 @@ def get_prior_cycle(series_name: str | None) -> Optional[PriorCycleContext]:
                 top_themes=top_themes,
                 executive_summary=row["executive_summary"],
             )
+
 
 
 def save_analysis(result: AnalysisResult) -> StoredAnalysis:
@@ -191,8 +194,32 @@ def save_analysis(result: AnalysisResult) -> StoredAnalysis:
     return load_analysis(result.analysis_id)
 
 
+
 def retry_save_pending_analysis(result: AnalysisResult) -> StoredAnalysis:
     return save_analysis(result)
+
+
+
+def delete_analysis(analysis_id: str) -> None:
+    with get_connection() as connection:
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT analysis_id FROM analysis_results WHERE analysis_id = %s",
+                    (analysis_id,),
+                )
+                if not cursor.fetchone():
+                    raise ValueError(f"Analysis {analysis_id} not found.")
+
+                cursor.execute(
+                    "DELETE FROM analysis_results WHERE analysis_id = %s",
+                    (analysis_id,),
+                )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+
 
 
 def list_analyses(filters: Optional[HistoryFilters] = None) -> list[HistoryListItem]:
@@ -242,6 +269,7 @@ def list_analyses(filters: Optional[HistoryFilters] = None) -> list[HistoryListI
         )
         for row in rows
     ]
+
 
 
 def load_analysis(analysis_id: str) -> StoredAnalysis:
@@ -356,6 +384,7 @@ def load_analysis(analysis_id: str) -> StoredAnalysis:
     return stored
 
 
+
 def export_analysis_csv(analysis_id: str) -> str:
     stored = load_analysis(analysis_id)
     buffer = io.StringIO()
@@ -375,6 +404,7 @@ def export_analysis_csv(analysis_id: str) -> str:
             }
         )
     return buffer.getvalue()
+
 
 
 def _database_ready() -> bool:

@@ -1,6 +1,7 @@
 ﻿from .models import HistoryFilters, HistoryListItem, StoredAnalysis, StoredRecord
 from .service import (
     bootstrap_database,
+    delete_analysis,
     export_analysis_csv,
     get_prior_cycle,
     get_series_names,
@@ -16,6 +17,7 @@ __all__ = [
     "StoredAnalysis",
     "StoredRecord",
     "bootstrap_database",
+    "delete_analysis",
     "export_analysis_csv",
     "get_prior_cycle",
     "get_series_names",
