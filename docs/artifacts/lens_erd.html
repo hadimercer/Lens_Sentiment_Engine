@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lens — ERD / Data Model</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap');
+:root{
+  --bg:#090d13;--surface:#0e1520;--border:#1a2535;
+  --accent:#00c9a7;--text:#c8daf0;--muted:#4a6278;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Syne',system-ui,sans-serif;
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+
+#hdr{height:52px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;}
+.logo{font-size:17px;font-weight:800;background:linear-gradient(135deg,#00c9a7,#3d7fff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hsep{width:1px;height:20px;background:var(--border);}
+.htitle{font-size:13px;font-weight:600;flex:1;}
+.hsub{font-size:9px;font-family:'DM Mono',monospace;color:var(--muted);letter-spacing:1px;}
+.ctrls{display:flex;gap:5px;}
+.cb{background:#0b1520;border:1px solid var(--border);color:var(--text);
+  padding:4px 12px;border-radius:3px;font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;}
+.cb:hover{border-color:var(--accent);color:var(--accent);}
+
+#vc{flex:1;overflow:hidden;position:relative;cursor:grab;}
+#vc.dragging{cursor:grabbing;}
+#canvas{position:absolute;top:0;left:0;transform-origin:0 0;}
+
+#leg{position:absolute;bottom:14px;right:14px;background:var(--surface);
+  border:1px solid var(--border);border-radius:6px;padding:11px 13px;
+  font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);z-index:10;}
+.lt{font-weight:700;color:var(--text);font-size:8px;letter-spacing:2px;
+  text-transform:uppercase;margin-bottom:7px;}
+.lr{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+
+#tleg{position:absolute;bottom:14px;left:14px;background:var(--surface);
+  border:1px solid var(--border);border-radius:6px;padding:11px 13px;
+  font-family:'DM Mono',monospace;font-size:9px;z-index:10;}
+.tlr{display:flex;align-items:center;gap:7px;margin-bottom:5px;}
+.tdot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <span class="logo">Lens</span>
+  <div class="hsep"></div>
+  <span class="htitle">ERD — Entity Relationship Diagram</span>
+  <span class="hsub">5 TABLES · POSTGRESQL · S4 PORTFOLIO 2026</span>
+  <div class="ctrls">
+    <button class="cb" onclick="resetView()">Fit</button>
+    <button class="cb" onclick="zoomBy(1.2)">+</button>
+    <button class="cb" onclick="zoomBy(0.8)">−</button>
+  </div>
+</div>
+
+<div id="vc">
+  <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+
+  <div id="leg">
+    <div class="lt">Notation</div>
+    <div class="lr">
+      <svg width="40" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke="#2a5090" stroke-width="1.3"/><polygon points="30,1 40,4 30,7" fill="#2a5090"/></svg>
+      <span>FK reference (1:N)</span>
+    </div>
+    <div class="lr">
+      <svg width="40" height="8"><line x1="0" y1="4" x2="30" y2="4" stroke="#2a5090" stroke-width="1.3" stroke-dasharray="4,3"/><polygon points="30,1 40,4 30,7" fill="#2a5090"/></svg>
+      <span>Optional / JSONB ref</span>
+    </div>
+    <div class="lr">
+      <svg width="14" height="14"><rect x="1" y="1" width="12" height="12" rx="2" fill="#0d1824" stroke="#d4a843" stroke-width="1.2"/></svg>
+      <span>Primary key (UUID)</span>
+    </div>
+    <div class="lr">
+      <svg width="14" height="14"><rect x="1" y="1" width="12" height="12" rx="2" fill="#0d1824" stroke="#3d7fff" stroke-width="1.2"/></svg>
+      <span>Foreign key</span>
+    </div>
+    <div class="lr">
+      <svg width="14" height="14"><rect x="1" y="1" width="12" height="12" rx="2" fill="#0d1824" stroke="#9d6fff" stroke-width="1.2"/></svg>
+      <span>JSONB field</span>
+    </div>
+  </div>
+
+  <div id="tleg">
+    <div class="lt">Table Groups</div>
+    <div class="tlr"><div class="tdot" style="background:#0d2218;border:1px solid #00c9a7;"></div><span style="color:#00c9a7;font-family:'DM Mono',monospace;font-size:9px;">Core — analysis_results</span></div>
+    <div class="tlr"><div class="tdot" style="background:#0d1830;border:1px solid #3d7fff;"></div><span style="color:#3d7fff;font-family:'DM Mono',monospace;font-size:9px;">Series — series_index</span></div>
+    <div class="tlr"><div class="tdot" style="background:#18100a;border:1px solid #d4a843;"></div><span style="color:#d4a843;font-family:'DM Mono',monospace;font-size:9px;">Records — batch_records</span></div>
+    <div class="tlr"><div class="tdot" style="background:#12100a;border:1px solid #9d6fff;"></div><span style="color:#9d6fff;font-family:'DM Mono',monospace;font-size:9px;">Context — context_profiles</span></div>
+    <div class="tlr"><div class="tdot" style="background:#0e1218;border:1px solid #4a7aaa;"></div><span style="color:#4a7aaa;font-family:'DM Mono',monospace;font-size:9px;">Audit — pipeline_run_log</span></div>
+  </div>
+</div>
+
+<script>
+const SVG_NS='http://www.w3.org/2000/svg';
+function N(tag,a){const e=document.createElementNS(SVG_NS,tag);for(const[k,v]of Object.entries(a||{}))e.setAttribute(k,v);return e;}
+
+// ── Colour palette ──────────────────────────────────────────────
+const C={
+  bg:'#090d13', body:'#080f18',
+  // table colours by group
+  core: {h:'#0a2218', s:'#00c9a7', t:'#00c9a7', dim:'#005a44'},
+  ser:  {h:'#0a1628', s:'#3d7fff', t:'#3d7fff', dim:'#1a3a70'},
+  rec:  {h:'#180f06', s:'#d4a843', t:'#d4a843', dim:'#6a4a10'},
+  ctx:  {h:'#100a18', s:'#9d6fff', t:'#9d6fff', dim:'#4a2a80'},
+  log:  {h:'#0a1018', s:'#4a7aaa', t:'#4a7aaa', dim:'#1e3a5f'},
+  // field colours
+  ft:   '#8ab0cc',
+  ftype:'#2e5268',
+  pk:   '#d4a843',
+  fk:   '#3d7fff',
+  json: '#9d6fff',
+  null: '#364a58',
+  // relationship
+  rel:  '#1e3a5f',
+};
+
+// ── Layout constants ────────────────────────────────────────────
+const TW = 280;   // table width
+const FH = 19;    // field row height
+const HDR = 34;   // header height
+const PAD = 10;   // padding above/below fields
+
+// ── Table definitions ───────────────────────────────────────────
+// field: {name, type, pk?, fk?, json?, nullable?, note?}
+//
+// LAYOUT PLAN (column × row):
+//
+//   Col A x=40:
+//     series_index        (top)   — 7 fields
+//     context_profiles    (mid)   — 7 fields
+//
+//   Col B x=400:  [CENTRE — CORE TABLE]
+//     analysis_results    (mid)   — 14 fields
+//
+//   Col C x=760:
+//     batch_records       (top)   — 10 fields
+//     pipeline_run_log    (lower) — 10 fields
+//
+
+const TABLES=[
+  {
+    id:'series_index',
+    label:'series_index',
+    group:'ser',
+    x:40, y:40,
+    fields:[
+      {name:'series_id',    type:'uuid',        pk:true,              note:'PK'},
+      {name:'series_name',  type:'text',                              note:'unique'},
+      {name:'domain_tag',   type:'text',        nullable:true},
+      {name:'run_count',    type:'integer'},
+      {name:'last_run_at',  type:'timestamptz', nullable:true},
+      {name:'created_by',   type:'text',        nullable:true,        note:'analyst label'},
+      {name:'created_at',   type:'timestamptz'},
+    ]
+  },
+  {
+    id:'context_profiles',
+    label:'context_profiles',
+    group:'ctx',
+    x:40, y:0, // y calculated after series_index
+    fields:[
+      {name:'profile_id',        type:'uuid',   pk:true,          note:'PK'},
+      {name:'analysis_id',       type:'uuid',   fk:true,          note:'→ analysis_results'},
+      {name:'org_name',          type:'text',   nullable:true},
+      {name:'industry',          type:'text',   nullable:true},
+      {name:'department',        type:'text',   nullable:true},
+      {name:'reporting_period',  type:'text',   nullable:true},
+      {name:'situational_notes', type:'text',   nullable:true,    note:'max 500 chars'},
+      {name:'created_at',        type:'timestamptz'},
+    ]
+  },
+  {
+    id:'analysis_results',
+    label:'analysis_results',
+    group:'core',
+    x:400, y:80,
+    fields:[
+      {name:'analysis_id',        type:'uuid',        pk:true,           note:'PK · gen_random_uuid()'},
+      {name:'series_name',        type:'text',        fk:true,  nullable:true, note:'→ series_index'},
+      {name:'run_sequence',       type:'integer',     nullable:true,     note:'within series'},
+      {name:'batch_label',        type:'text'},
+      {name:'domain_tag',         type:'text',        nullable:true},
+      {name:'record_count',       type:'integer'},
+      {name:'sentiment_split',    type:'jsonb',       json:true,         note:'{pos%, neu%, neg%}'},
+      {name:'top_themes',         type:'jsonb',       json:true,         note:'array of theme objects'},
+      {name:'executive_summary',  type:'text',        nullable:true},
+      {name:'anomaly_count',      type:'integer',     nullable:true},
+      {name:'context_profile',    type:'jsonb',       json:true, nullable:true, note:'snapshot at run time'},
+      {name:'prior_cycle_ref',    type:'uuid',        fk:true,  nullable:true, note:'→ analysis_results (self)'},
+      {name:'per_record_results', type:'jsonb',       json:true,         note:'full scored array'},
+      {name:'created_at',         type:'timestamptz'},
+    ]
+  },
+  {
+    id:'batch_records',
+    label:'batch_records',
+    group:'rec',
+    x:760, y:40,
+    fields:[
+      {name:'record_id',            type:'uuid',      pk:true,          note:'PK'},
+      {name:'analysis_id',          type:'uuid',      fk:true,          note:'→ analysis_results'},
+      {name:'sequence_number',      type:'integer'},
+      {name:'text_body',            type:'text'},
+      {name:'sentiment_label',      type:'text',                        note:'positive|neutral|negative'},
+      {name:'confidence_score',     type:'numeric(4,3)'},
+      {name:'deviation_from_mean',  type:'numeric',   nullable:true},
+      {name:'is_anomaly',           type:'boolean',                     note:'default false'},
+      {name:'theme_assignments',    type:'jsonb',     json:true, nullable:true},
+      {name:'record_timestamp',     type:'timestamptz', nullable:true,  note:'from source if present'},
+    ]
+  },
+  {
+    id:'pipeline_run_log',
+    label:'pipeline_run_log',
+    group:'log',
+    x:760, y:0, // y calculated after batch_records
+    fields:[
+      {name:'log_id',           type:'uuid',         pk:true,           note:'PK'},
+      {name:'analysis_id',      type:'uuid',         fk:true,           note:'→ analysis_results'},
+      {name:'triggered_at',     type:'timestamptz'},
+      {name:'status',           type:'text',                            note:'SUCCESS|PARTIAL|FAILED'},
+      {name:'records_submitted',type:'integer'},
+      {name:'records_scored',   type:'integer'},
+      {name:'records_failed',   type:'integer'},
+      {name:'api_call_count',   type:'integer'},
+      {name:'duration_seconds', type:'numeric',      nullable:true},
+      {name:'error_detail',     type:'text',         nullable:true},
+    ]
+  },
+];
+
+// Compute heights and auto-position y values
+function tableH(t){ return HDR + PAD + t.fields.length*FH + PAD; }
+
+// Position context_profiles below series_index (Col A)
+const siH = tableH(TABLES[0]);
+TABLES[1].y = TABLES[0].y + siH + 40;
+
+// Position pipeline_run_log below batch_records (Col C)
+const brH = tableH(TABLES[3]);
+TABLES[4].y = TABLES[3].y + brH + 40;
+
+// Centre analysis_results vertically between col A and col C groups
+const colABottom = TABLES[1].y + tableH(TABLES[1]);
+const colCBottom = TABLES[4].y + tableH(TABLES[4]);
+const totalColHeight = Math.max(colABottom, colCBottom);
+TABLES[2].y = Math.round((totalColHeight - tableH(TABLES[2])) / 2);
+
+// Build lookup
+const TMAP={};
+TABLES.forEach(t=>TMAP[t.id]=t);
+
+// ── Relationship definitions ────────────────────────────────────
+// {from, to, fromField, toField, label, dashed?}
+// We manually route each relationship as a polyline
+const RELS=[
+  {from:'analysis_results', to:'series_index',
+   label:'N:1 series_name',
+   fromSide:'left', toSide:'right'},
+  {from:'context_profiles', to:'analysis_results',
+   label:'1:1 analysis_id',
+   fromSide:'right', toSide:'left'},
+  {from:'batch_records', to:'analysis_results',
+   label:'N:1 analysis_id',
+   fromSide:'left', toSide:'right'},
+  {from:'pipeline_run_log', to:'analysis_results',
+   label:'1:1 analysis_id',
+   fromSide:'left', toSide:'right'},
+  {from:'analysis_results', to:'analysis_results',
+   label:'self-ref prior_cycle_ref',
+   self:true, dashed:true},
+];
+
+// ── Drawing helpers ─────────────────────────────────────────────
+let _mk={};
+function mkMarker(svg,col,id){
+  if(_mk[id])return 'url(#'+id+')';
+  let d=svg.querySelector('defs');
+  if(!d){d=N('defs');svg.insertBefore(d,svg.firstChild);}
+  const m=N('marker',{id,markerWidth:'9',markerHeight:'7',refX:'8',refY:'3.5',orient:'auto'});
+  m.appendChild(N('polygon',{points:'0 0,9 3.5,0 7',fill:col}));
+  d.appendChild(m);_mk[id]=true;
+  return 'url(#'+id+')';
+}
+
+function grpCol(g){ return C[g]||C.log; }
+
+function drawTable(svg,t){
+  const gc=grpCol(t.group);
+  const h=tableH(t);
+  const g=N('g');
+
+  // Drop shadow
+  g.appendChild(N('rect',{x:t.x+4,y:t.y+4,width:TW,height:h,rx:6,
+    fill:'rgba(0,0,0,0.5)'}));
+
+  // Body
+  g.appendChild(N('rect',{x:t.x,y:t.y,width:TW,height:h,rx:6,
+    fill:C.body,stroke:gc.s,'stroke-width':1.4}));
+
+  // Header
+  g.appendChild(N('rect',{x:t.x,y:t.y,width:TW,height:HDR,rx:6,
+    fill:gc.h,stroke:gc.s,'stroke-width':1.4}));
+  // Square off bottom corners of header
+  g.appendChild(N('rect',{x:t.x,y:t.y+HDR-6,width:TW,height:6,fill:gc.h}));
+  // Left accent bar
+  g.appendChild(N('rect',{x:t.x,y:t.y,width:4,height:HDR,rx:3,fill:gc.s}));
+
+  // Header text
+  const ht=N('text',{x:t.x+TW/2+2,y:t.y+HDR/2+1,
+    'text-anchor':'middle','dominant-baseline':'middle',
+    fill:gc.t,style:'font-size:11.5px;font-family:Syne,sans-serif;font-weight:700;letter-spacing:.4px;'});
+  ht.textContent=t.label;g.appendChild(ht);
+
+  // Divider
+  g.appendChild(N('line',{x1:t.x,y1:t.y+HDR,x2:t.x+TW,y2:t.y+HDR,
+    stroke:gc.s,'stroke-width':0.8,opacity:'0.5'}));
+
+  // Fields
+  t.fields.forEach((f,i)=>{
+    const fy=t.y+HDR+PAD+i*FH+FH/2;
+
+    // Alternating row background
+    if(i%2===0){
+      g.appendChild(N('rect',{x:t.x+1,y:t.y+HDR+PAD+i*FH,width:TW-2,height:FH,
+        fill:'rgba(255,255,255,0.018)',rx:0}));
+    }
+
+    // Key icon
+    if(f.pk){
+      g.appendChild(N('rect',{x:t.x+8,y:fy-5,width:10,height:10,rx:2,
+        fill:'#120e04',stroke:C.pk,'stroke-width':1}));
+      const kt=N('text',{x:t.x+13,y:fy,'text-anchor':'middle','dominant-baseline':'middle',
+        fill:C.pk,style:'font-size:7px;font-family:DM Mono,monospace;font-weight:700;'});
+      kt.textContent='K';g.appendChild(kt);
+    } else if(f.fk){
+      g.appendChild(N('rect',{x:t.x+8,y:fy-5,width:10,height:10,rx:2,
+        fill:'#04101a',stroke:C.fk,'stroke-width':1}));
+      const kt=N('text',{x:t.x+13,y:fy,'text-anchor':'middle','dominant-baseline':'middle',
+        fill:C.fk,style:'font-size:7px;font-family:DM Mono,monospace;font-weight:700;'});
+      kt.textContent='F';g.appendChild(kt);
+    } else if(f.json){
+      g.appendChild(N('rect',{x:t.x+8,y:fy-5,width:10,height:10,rx:2,
+        fill:'#0c0818',stroke:C.json,'stroke-width':1}));
+      const kt=N('text',{x:t.x+13,y:fy,'text-anchor':'middle','dominant-baseline':'middle',
+        fill:C.json,style:'font-size:6.5px;font-family:DM Mono,monospace;font-weight:700;'});
+      kt.textContent='J';g.appendChild(kt);
+    } else {
+      // plain dot
+      g.appendChild(N('circle',{cx:t.x+13,cy:fy,r:2.5,fill:gc.dim,opacity:'0.7'}));
+    }
+
+    // Field name
+    const nameCol=f.pk?C.pk:f.fk?C.fk:f.json?C.json:f.nullable?C.null:C.ft;
+    const fn2=N('text',{x:t.x+24,y:fy,'dominant-baseline':'middle',
+      fill:nameCol,style:'font-size:9.5px;font-family:DM Mono,monospace;font-weight:'+(f.pk||f.fk?'600':'400')+';'});
+    fn2.textContent=f.name;g.appendChild(fn2);
+
+    // Type annotation (right-aligned)
+    const tx2=t.x+TW-8;
+    let typeStr=f.type;
+    const ft2=N('text',{x:tx2,y:fy,'text-anchor':'end','dominant-baseline':'middle',
+      fill:C.ftype,style:'font-size:8px;font-family:DM Mono,monospace;'});
+    ft2.textContent=typeStr;g.appendChild(ft2);
+
+    // Note badge (if present, shown between name and type)
+    if(f.note){
+      const noteStr=f.note;
+      const nx=t.x+24+f.name.length*5.8+6;
+      const nt2=N('text',{x:nx,y:fy,'dominant-baseline':'middle',
+        fill:gc.dim,style:'font-size:7.5px;font-family:DM Mono,monospace;font-style:italic;'});
+      nt2.textContent='·'+noteStr;g.appendChild(nt2);
+    }
+
+    // Field divider (light)
+    if(i<t.fields.length-1){
+      g.appendChild(N('line',{x1:t.x+1,y1:t.y+HDR+PAD+(i+1)*FH,x2:t.x+TW-1,y2:t.y+HDR+PAD+(i+1)*FH,
+        stroke:'rgba(255,255,255,0.03)'}));
+    }
+  });
+
+  svg.appendChild(g);
+}
+
+// ── Relationship router ─────────────────────────────────────────
+// Returns a polyline points array for a relationship.
+// All routing is explicit — no auto-routing.
+function routeRel(rel){
+  const FT=TMAP[rel.from];
+  const TT=TMAP[rel.to];
+  const fh=tableH(FT), th=tableH(TT);
+
+  // Self-referential (analysis_results → analysis_results)
+  if(rel.self){
+    const cx=FT.x+TW+20;
+    const y1=FT.y+HDR+PAD+0*FH+FH/2; // first field row (analysis_id)
+    const y2=FT.y+HDR+PAD+11*FH+FH/2; // prior_cycle_ref row
+    return [
+      [FT.x+TW, y2],
+      [FT.x+TW+40, y2],
+      [FT.x+TW+40, y1],
+      [FT.x+TW, y1],
+    ];
+  }
+
+  // analysis_results (left side) → series_index (right side)
+  if(rel.from==='analysis_results' && rel.to==='series_index'){
+    const fromY=FT.y+HDR+PAD+1*FH+FH/2; // series_name row (index 1)
+    const toY=TT.y+HDR/2;                // series header centre
+    // Corridor at x=380 between the two tables
+    return [
+      [FT.x,     fromY],
+      [FT.x-30,  fromY],
+      [FT.x-30,  toY],
+      [TT.x+TW,  toY],
+    ];
+  }
+
+  // context_profiles (right side) → analysis_results (left side)
+  if(rel.from==='context_profiles' && rel.to==='analysis_results'){
+    const fromY=TT.y+HDR+PAD+1*FH+FH/2; // context: analysis_id row (index 1)
+    const toY=FT.y+HDR+PAD+0*FH+FH/2;   // analysis_results: analysis_id (pk)
+    // Route: right of ctx table → across gap → left of analysis_results
+    const midX=(TT.x+TW+FT.x)/2;
+    return [
+      [TT.x+TW, fromY],
+      [midX,    fromY],
+      [midX,    toY],
+      [FT.x,    toY],
+    ];
+  }
+
+  // batch_records (left side) → analysis_results (right side)
+  if(rel.from==='batch_records' && rel.to==='analysis_results'){
+    const fromY=FT.y+HDR+PAD+1*FH+FH/2; // batch_records: analysis_id (index 1)
+    const toY=TT.y+HDR+PAD+0*FH+FH/2;   // analysis_results: analysis_id (pk)
+    const midX=(TT.x+TW+FT.x)/2;
+    return [
+      [FT.x,    fromY],
+      [midX,    fromY],
+      [midX,    toY],
+      [TT.x+TW, toY],
+    ];
+  }
+
+  // pipeline_run_log (left side) → analysis_results (right side)
+  if(rel.from==='pipeline_run_log' && rel.to==='analysis_results'){
+    const fromY=FT.y+HDR+PAD+1*FH+FH/2; // log: analysis_id (index 1)
+    const toY=TT.y+HDR+PAD+0*FH+FH/2;   // analysis_results: analysis_id (pk)
+    const midX=(TT.x+TW+FT.x)/2+10;
+    return [
+      [FT.x,    fromY],
+      [midX,    fromY],
+      [midX,    toY],
+      [TT.x+TW, toY],
+    ];
+  }
+
+  return [];
+}
+
+function drawRel(svg,rel){
+  const pts=routeRel(rel);
+  if(pts.length<2)return;
+
+  const col=C.rel;
+  const dashed=rel.dashed||false;
+  const arrowId='arr_rel'+(dashed?'d':'');
+  const mUrl=mkMarker(svg,col,arrowId);
+
+  const d='M'+pts.map(p=>p[0]+','+p[1]).join(' L');
+  svg.appendChild(N('path',{d,fill:'none',stroke:col,
+    'stroke-width':'1.3',
+    'stroke-dasharray':dashed?'6,4':'none',
+    'stroke-linecap':'round','stroke-linejoin':'round',
+    'marker-end':mUrl,opacity:'0.75'}));
+
+  // Cardinality label on longest segment
+  if(rel.label){
+    let bi=1,bl=0;
+    for(let i=1;i<pts.length;i++){
+      const dx=pts[i][0]-pts[i-1][0],dy=pts[i][1]-pts[i-1][1];
+      const l=Math.sqrt(dx*dx+dy*dy);
+      if(l>bl){bl=l;bi=i;}
+    }
+    const mx=(pts[bi][0]+pts[bi-1][0])/2;
+    const my=(pts[bi][1]+pts[bi-1][1])/2;
+    const tw=rel.label.length*5.2+10;
+    svg.appendChild(N('rect',{x:mx-tw/2,y:my-8,width:tw,height:14,rx:2,
+      fill:'#090d13',opacity:'0.92'}));
+    const lt=N('text',{x:mx,y:my,'text-anchor':'middle','dominant-baseline':'middle',
+      fill:'#2a4a6a',style:'font-size:8px;font-family:DM Mono,monospace;'});
+    lt.textContent=rel.label;svg.appendChild(lt);
+  }
+}
+
+// ── Canvas computation ──────────────────────────────────────────
+function canvasSize(){
+  let maxX=0, maxY=0;
+  TABLES.forEach(t=>{
+    maxX=Math.max(maxX, t.x+TW+80);
+    maxY=Math.max(maxY, t.y+tableH(t)+80);
+  });
+  return {w:maxX, h:maxY};
+}
+
+// ── MAIN BUILD ──────────────────────────────────────────────────
+function build(){
+  const svg=document.getElementById('canvas');
+  const {w,h}=canvasSize();
+  svg.setAttribute('width',w);svg.setAttribute('height',h);
+
+  // Background
+  svg.appendChild(N('rect',{x:0,y:0,width:w,height:h,fill:C.bg}));
+
+  // Subtle grid
+  const gp=N('pattern',{id:'grid',width:'40',height:'40',patternUnits:'userSpaceOnUse'});
+  gp.appendChild(N('path',{d:'M 40 0 L 0 0 0 40',fill:'none',
+    stroke:'rgba(255,255,255,0.018)','stroke-width':'0.5'}));
+  let defs=svg.querySelector('defs');
+  if(!defs){defs=N('defs');svg.insertBefore(defs,svg.firstChild);}
+  defs.appendChild(gp);
+  svg.appendChild(N('rect',{x:0,y:0,width:w,height:h,fill:'url(#grid)'}));
+
+  // Relationships (behind tables)
+  RELS.forEach(r=>drawRel(svg,r));
+
+  // Tables
+  TABLES.forEach(t=>drawTable(svg,t));
+
+  // Footer
+  const ft=N('text',{x:w-12,y:h-12,'text-anchor':'end',
+    fill:'#141e2e',style:'font-size:8px;font-family:DM Mono,monospace;'});
+  ft.textContent='LENS_ERD_001 · S4 PORTFOLIO 2026 · PostgreSQL schema v0.1';
+  svg.appendChild(ft);
+}
+
+// ── Pan & Zoom ──────────────────────────────────────────────────
+let scale=1,tx=20,ty=20,dragging=false,lx=0,ly=0;
+function applyT(){
+  document.getElementById('canvas').style.transform=`translate(${tx}px,${ty}px) scale(${scale})`;
+}
+function resetView(){
+  const vc=document.getElementById('vc');
+  const vw=vc.clientWidth,vh=vc.clientHeight;
+  const sw=parseFloat(document.getElementById('canvas').getAttribute('width')||1100);
+  const sh=parseFloat(document.getElementById('canvas').getAttribute('height')||800);
+  scale=Math.min((vw-40)/sw,(vh-40)/sh,1.3);
+  tx=20;ty=20;applyT();
+}
+function zoomBy(f){
+  const vc=document.getElementById('vc');
+  const cx=vc.clientWidth/2,cy=vc.clientHeight/2;
+  tx=cx-(cx-tx)*f;ty=cy-(cy-ty)*f;scale*=f;applyT();
+}
+const vc=document.getElementById('vc');
+vc.addEventListener('mousedown',e=>{dragging=true;lx=e.clientX;ly=e.clientY;vc.classList.add('dragging');});
+window.addEventListener('mouseup',()=>{dragging=false;vc.classList.remove('dragging');});
+window.addEventListener('mousemove',e=>{
+  if(!dragging)return;
+  tx+=e.clientX-lx;ty+=e.clientY-ly;lx=e.clientX;ly=e.clientY;applyT();
+});
+vc.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const f=e.deltaY<0?1.1:0.9;
+  const r=vc.getBoundingClientRect();
+  const mx=e.clientX-r.left,my=e.clientY-r.top;
+  tx=mx-(mx-tx)*f;ty=my-(my-ty)*f;scale*=f;applyT();
+},{passive:false});
+
+window.addEventListener('load',()=>{
+  build();
+  setTimeout(resetView,50);
+});
+</script>
+</body>
+</html>

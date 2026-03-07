@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Lens — Use Case Diagram</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap');
+:root{
+  --bg:#090d13;--surface:#0e1520;--surface2:#131c28;--border:#1a2535;
+  --accent:#00c9a7;--accent2:#3d7fff;--gold:#d4a843;
+  --text:#c8daf0;--muted:#4a6278;--dim:#1e3048;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Syne',system-ui,sans-serif;
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+
+/* Header */
+#hdr{height:52px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 18px;gap:12px;flex-shrink:0;}
+.logo{font-size:17px;font-weight:800;background:linear-gradient(135deg,#00c9a7,#3d7fff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hdiv{width:1px;height:20px;background:var(--border);}
+.htitle{font-size:12px;font-weight:700;color:var(--text);}
+.hbadge{font-size:7.5px;font-weight:700;font-family:'DM Mono',monospace;letter-spacing:1px;
+  padding:2px 7px;border-radius:2px;}
+.badge-cx{background:rgba(0,201,167,.12);color:#00c9a7;}
+.badge-hr{background:rgba(212,168,67,.12);color:#d4a843;}
+.badge-ops{background:rgba(61,127,255,.12);color:#3d7fff;}
+.hspacer{flex:1;}
+.ctrls{display:flex;gap:4px;}
+.cb{background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  padding:4px 10px;border-radius:3px;font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;}
+.cb:hover{border-color:var(--accent);color:var(--accent);}
+
+/* Tabs */
+#tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 18px;gap:2px;flex-shrink:0;}
+.tab{font-size:9px;font-weight:700;letter-spacing:1.5px;font-family:'DM Mono',monospace;
+  padding:8px 14px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;
+  transition:all .12s;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* Canvas */
+#vc{flex:1;position:relative;overflow:hidden;background:var(--bg);cursor:grab;}
+#vc.dragging{cursor:grabbing;}
+#canvas{position:absolute;top:0;left:0;transform-origin:0 0;}
+
+/* Legend */
+#leg{position:absolute;bottom:14px;right:14px;background:var(--surface);
+  border:1px solid var(--border);border-radius:6px;padding:12px 14px;z-index:20;
+  font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);min-width:160px;}
+.lt{font-weight:700;color:var(--text);font-size:8px;letter-spacing:2px;
+  text-transform:uppercase;margin-bottom:8px;}
+.lr{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.ls{width:40px;height:12px;flex-shrink:0;}
+
+/* Domain legend */
+#domleg{position:absolute;bottom:14px;left:14px;background:var(--surface);
+  border:1px solid var(--border);border-radius:6px;padding:12px 14px;z-index:20;
+  font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);}
+.dlr{display:flex;align-items:center;gap:7px;margin-bottom:5px;}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* Info panel */
+#info{display:none;position:absolute;top:14px;right:14px;background:var(--surface);
+  border:1px solid var(--border);border-radius:6px;padding:14px;z-index:20;
+  font-family:'DM Mono',monospace;max-width:260px;}
+.it{font-size:7.5px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:6px;}
+.id2{font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px;font-family:'Syne',sans-serif;}
+.idesc{font-size:9px;line-height:1.6;color:#8aaccc;}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div class="logo">Lens</div>
+  <div class="hdiv"></div>
+  <div class="htitle">Use Case Diagram</div>
+  <span class="hbadge badge-cx">CX</span>
+  <span class="hbadge badge-hr">HR</span>
+  <span class="hbadge badge-ops">OPS</span>
+  <div class="hspacer"></div>
+  <div class="ctrls">
+    <button class="cb" onclick="resetView()">Fit</button>
+    <button class="cb" onclick="zoomBy(1.2)">+</button>
+    <button class="cb" onclick="zoomBy(0.8)">−</button>
+  </div>
+</div>
+
+<div id="tabs">
+  <div class="tab active" onclick="setTab('full',this)">FULL DIAGRAM</div>
+  <div class="tab" onclick="setTab('cx',this)">CX FRAMING</div>
+  <div class="tab" onclick="setTab('hr',this)">HR FRAMING</div>
+  <div class="tab" onclick="setTab('ops',this)">OPS FRAMING</div>
+</div>
+
+<div id="vc">
+  <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="leg">
+    <div class="lt">Notation</div>
+    <div class="lr">
+      <svg class="ls" viewBox="0 0 40 12"><line x1="0" y1="6" x2="40" y2="6" stroke="#1e3a5f" stroke-width="1.5"/></svg>
+      <span>Association</span>
+    </div>
+    <div class="lr">
+      <svg class="ls" viewBox="0 0 40 12"><line x1="0" y1="6" x2="30" y2="6" stroke="#2ecc7a" stroke-width="1.2" stroke-dasharray="5,3"/><polygon points="30,3 40,6 30,9" fill="#2ecc7a"/></svg>
+      <span>«include»</span>
+    </div>
+    <div class="lr">
+      <svg class="ls" viewBox="0 0 40 12"><line x1="0" y1="6" x2="30" y2="6" stroke="#d4a843" stroke-width="1.2" stroke-dasharray="5,3"/><polygon points="30,3 40,6 30,9" fill="#d4a843"/></svg>
+      <span>«extend»</span>
+    </div>
+    <div class="lr">
+      <svg class="ls" viewBox="0 0 40 12"><ellipse cx="10" cy="6" rx="9" ry="5" fill="none" stroke="#3d7fff" stroke-width="1.2"/></svg>
+      <span>Use case</span>
+    </div>
+    <div class="lr">
+      <svg class="ls" viewBox="0 0 40 12">
+        <circle cx="10" cy="2" r="2" fill="#c8daf0"/>
+        <line x1="10" y1="4" x2="10" y2="8" stroke="#c8daf0" stroke-width="1.2"/>
+        <line x1="6" y1="6" x2="14" y2="6" stroke="#c8daf0" stroke-width="1.2"/>
+        <line x1="7" y1="8" x2="10" y2="11" stroke="#c8daf0" stroke-width="1.2"/>
+        <line x1="13" y1="8" x2="10" y2="11" stroke="#c8daf0" stroke-width="1.2"/>
+      </svg>
+      <span>Actor</span>
+    </div>
+  </div>
+  <div id="domleg">
+    <div class="lt">Domain Tags</div>
+    <div class="dlr"><div class="dot" style="background:#00c9a7"></div><span style="color:#00c9a7">CX — Customer Experience</span></div>
+    <div class="dlr"><div class="dot" style="background:#d4a843"></div><span style="color:#d4a843">HR — People & Culture</span></div>
+    <div class="dlr"><div class="dot" style="background:#3d7fff"></div><span style="color:#3d7fff">OPS — Service Operations</span></div>
+    <div class="dlr"><div class="dot" style="background:#8a7adf"></div><span style="color:#8a7adf">ALL — Universal</span></div>
+  </div>
+  <div id="info">
+    <div class="it">USE CASE DETAIL</div>
+    <div class="id2" id="info-title">—</div>
+    <div class="idesc" id="info-desc">—</div>
+  </div>
+</div>
+
+<script>
+const SVG_NS='http://www.w3.org/2000/svg';
+function N(tag,a){
+  const e=document.createElementNS(SVG_NS,tag);
+  for(const[k,v]of Object.entries(a||{}))e.setAttribute(k,v);
+  return e;
+}
+
+const C={
+  bg:'#090d13',surface:'#0e1520',border:'#1a2535',
+  cx:'#00c9a7',hr:'#d4a843',ops:'#3d7fff',all:'#8a7adf',
+  text:'#c8daf0',muted:'#4a6278',dim:'#1e3048',
+  include:'#2ecc7a',extend:'#d4a843',assoc:'#1e3a5f',
+};
+
+// ─────────────────────────────────────────────────────────────────
+// LAYOUT CONSTANTS  (all positions are ellipse centres)
+// 
+// Canvas: 1400 × 920
+// System boundary: x=210, y=60, w=860, h=800
+//
+// COLUMN X positions (ellipse centres):
+//   Col A – Input:         x = 340
+//   Col B – Pipeline:      x = 570
+//   Col C – Visualisation: x = 800
+//   Col D – Persistence:   x = 1020
+//
+// ROW Y positions:
+//   Row 1: y = 140
+//   Row 2: y = 260
+//   Row 3: y = 380
+//   Row 4: y = 500
+//   Row 5: y = 620
+//   Row 6: y = 740
+//   Row 7: y = 820  (new UCs: context, series)
+//
+// Actors:
+//   Analyst:  x=80,  y=340  (left, mid)
+//   Admin:    x=80,  y=620  (left, lower)
+//   OpenAI:   x=1330, y=380 (right)
+// ─────────────────────────────────────────────────────────────────
+
+const ERX=82, ERY=24;
+
+// Use cases: id, label (split on \n), domain, x, y, desc, detail
+const CASES=[
+  // ── INPUT GROUP ──────────────────────────────────────────────
+  {id:'uc01',label:'Upload Batch\nText File',      domain:'all',x:340,y:140,
+   detail:'UC-01 · Input',
+   desc:'Analyst uploads a CSV file or pastes raw text. Each row is a discrete text record. The system validates format, row count, and encoding before accepting.'},
+  {id:'uc02',label:'Label Batch\n& Domain Tag',    domain:'all',x:340,y:280,
+   detail:'UC-02 · Input',
+   desc:'Analyst assigns a human-readable source label (e.g. "NPS Q1 2026") and selects a domain tag. Used in all visualisations and stored with the analysis record.'},
+  {id:'uc02b',label:'Enter Context\nProfile',      domain:'all',x:340,y:420,
+   detail:'UC-02b · Input',
+   desc:'Analyst enters optional organisational context: company name, industry, department, reporting period, situational notes. Injected into the OpenAI prompt to sharpen output specificity.'},
+  {id:'uc02c',label:'Link to Analysis\nSeries',    domain:'all',x:340,y:560,
+   detail:'UC-02c · Input',
+   desc:'Analyst assigns the run to a named series (e.g. "Employee Pulse Q-Series"). Autocomplete from existing series names. Enables longitudinal comparison across cycles.'},
+  {id:'uc03',label:'Validate &\nPreview Records',  domain:'all',x:340,y:700,
+   detail:'UC-03 · Input',
+   desc:'System parses the uploaded file, shows count of valid records, flags malformed rows, and displays a 5-row sample. Analyst must confirm before pipeline runs.'},
+
+  // ── NLP PIPELINE GROUP ────────────────────────────────────────
+  {id:'uc04',label:'Run Sentiment\nAnalysis',       domain:'all',x:610,y:280,
+   detail:'UC-04 · NLP Pipeline',
+   desc:'Core pipeline step. Each record is sent to the OpenAI API with a structured prompt requesting a sentiment label (positive/neutral/negative) and a confidence score 0–1. Results stored per record.'},
+  {id:'uc05',label:'Extract Recurring\nThemes',     domain:'all',x:610,y:420,
+   detail:'UC-05 · NLP Pipeline',
+   desc:'Batch-level prompt to OpenAI requesting top 5–8 recurring themes. Each theme returned with frequency estimate, dominant sentiment polarity, and 1–2 representative example quotes.'},
+  {id:'uc06',label:'Generate Executive\nSummary',   domain:'all',x:610,y:560,
+   detail:'UC-06 · NLP Pipeline',
+   desc:'OpenAI produces a 2–3 sentence plain-language narrative summarising sentiment distribution, dominant themes, and any notable patterns. Acts as the dashboard header.'},
+  {id:'uc07',label:'Flag Sentiment\nAnomalies',     domain:'all',x:610,y:700,
+   detail:'UC-07 · NLP Pipeline',
+   desc:'Post-processing step. Records whose sentiment score deviates ±2σ from the batch mean are tagged. If timestamp data present, sudden directional time-series shifts are also flagged.'},
+
+  // ── VISUALISATION GROUP ───────────────────────────────────────
+  {id:'uc08',label:'View Sentiment\nBreakdown',     domain:'all',x:870,y:280,
+   detail:'UC-08 · Visualisation',
+   desc:'Dashboard panel: overall positive/neutral/negative % as a donut chart plus per-record histogram. Colour-coded by domain palette.'},
+  {id:'uc09',label:'View Theme\nHeatmap',           domain:'all',x:870,y:420,
+   detail:'UC-09 · Visualisation',
+   desc:'Grid showing each extracted theme vs sentiment polarity. Cells colour-coded by polarity. Hovering reveals representative quotes from source records.'},
+  {id:'uc10',label:'View Sentiment\nOver Time',     domain:'all',x:870,y:560,
+   detail:'UC-10 · Visualisation',
+   desc:'Rendered only when timestamp column is present. Line chart showing sentiment trend by day or week. Anomaly flags shown as highlighted data points.'},
+  {id:'uc11',label:'View Anomaly\nFlags',           domain:'all',x:870,y:700,
+   detail:'UC-11 · Visualisation',
+   desc:'Filtered view listing all records tagged as outliers. Shows record text, sentiment score, deviation value, and anomaly type. Sortable by severity.'},
+
+  // ── PERSISTENCE GROUP ─────────────────────────────────────────
+  {id:'uc12',label:'Save Analysis\nto History',     domain:'all',x:1120,y:420,
+   detail:'UC-12 · Persistence',
+   desc:'On pipeline completion, the full result — metadata, per-record scores, themes, summary, anomaly flags — is written to PostgreSQL with a unique analysis_id and series sequence number.'},
+  {id:'uc13',label:'Browse Past\nAnalyses',         domain:'all',x:1120,y:560,
+   detail:'UC-13 · Persistence',
+   desc:'Analyst or Admin views paginated list of stored analyses, grouped by series. Selecting a result re-displays the full dashboard without re-running the pipeline.'},
+  {id:'uc14',label:'Export\nResults CSV',           domain:'all',x:1120,y:700,
+   detail:'UC-14 · Export',
+   desc:'Analyst exports per-record sentiment scores and theme assignments as a CSV for use in Excel, BI tools, or stakeholder reports.'},
+];
+
+// Lookup map
+const CMAP={};
+CASES.forEach(c=>CMAP[c.id]=c);
+
+// Actors
+const ACTORS=[
+  {id:'analyst', label:'Analyst',    sub:'CX / HR / Ops',   x:70,  y:380},
+  {id:'admin',   label:'Admin',      sub:'Optional Reviewer',x:70,  y:620},
+  {id:'openai',  label:'OpenAI API', sub:'External NLP',    x:1360,y:420},
+];
+const AMAP={};
+ACTORS.forEach(a=>AMAP[a.id]=a);
+
+// System boundary
+const SYS={x:205,y:50,w:990,h:790};
+
+function domCol(d){
+  return d==='cx'?C.cx:d==='hr'?C.hr:d==='ops'?C.ops:C.all;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// EXPLICIT CONNECTIONS
+// Every connection has manually specified routing waypoints.
+// 'pts' is an array of [x,y] — the line is drawn through all of them.
+// For actor endpoints we use the actor's body centre (x, y+30).
+// For UC endpoints we use the nearest ellipse edge point.
+// ─────────────────────────────────────────────────────────────────
+
+// Helper: edge point of ellipse toward a given [tx,ty]
+function eEdge(uc, tx, ty){
+  const cx=uc.x, cy=uc.y;
+  const dx=tx-cx, dy=ty-cy;
+  const len=Math.sqrt(dx*dx+dy*dy)||1;
+  // Parametric ellipse edge
+  const angle=Math.atan2(dy,dx);
+  // Adjust for ellipse aspect
+  const ex=ERX*Math.cos(angle);
+  const ey=ERY*Math.sin(angle);
+  // Normalise so we're exactly on the ellipse boundary
+  const scale=Math.sqrt(ex*ex+ey*ey)/Math.sqrt(ERX*ERX*Math.cos(angle)*Math.cos(angle)+ERY*ERY*Math.sin(angle)*Math.sin(angle));
+  return [cx+ERX*Math.cos(angle), cy+ERY*Math.sin(angle)];
+}
+
+// Actor body centre (below head)
+function aCtr(a){ return [a.x, a.y+22]; }
+
+// Build connection point arrays for all relationships
+// Format: {type:'assoc'|'include'|'extend', pts:[[x,y],...], label?}
+function buildConnections(){
+  const conn=[];
+  const A=AMAP, C2=CMAP;
+
+  // ── ASSOCIATIONS (plain lines, no arrowhead direction needed) ──
+
+  // Analyst → UC01 (Upload): straight horizontal to left edge of UC01
+  conn.push({type:'assoc', pts:[aCtr(A.analyst), [C2.uc01.x-ERX, C2.uc01.y]]});
+
+  // Analyst → UC02 (Label): horizontal to left edge
+  conn.push({type:'assoc', pts:[[A.analyst.x+14,A.analyst.y+14], [C2.uc02.x-ERX, C2.uc02.y]]});
+
+  // Analyst → UC02b (Context): go right then bend down
+  conn.push({type:'assoc', pts:[
+    [A.analyst.x+14, A.analyst.y+28],
+    [C2.uc02b.x-ERX, C2.uc02b.y]
+  ]});
+
+  // Analyst → UC02c (Series): route down left side then right
+  conn.push({type:'assoc', pts:[
+    [A.analyst.x+14, A.analyst.y+35],
+    [A.analyst.x+14, C2.uc02c.y],
+    [C2.uc02c.x-ERX, C2.uc02c.y]
+  ]});
+
+  // Analyst → UC08 (View Breakdown): runs along top of system, enters right col
+  conn.push({type:'assoc', pts:[
+    [A.analyst.x+14, A.analyst.y+8],
+    [A.analyst.x+14, SYS.y-20],
+    [C2.uc08.x,      SYS.y-20],
+    [C2.uc08.x,      C2.uc08.y-ERY]
+  ]});
+
+  // Analyst → UC13 (Browse): goes down, routes below system boundary
+  conn.push({type:'assoc', pts:[
+    [A.analyst.x+14, A.analyst.y+38],
+    [A.analyst.x+14, SYS.y+SYS.h+20],
+    [C2.uc13.x,      SYS.y+SYS.h+20],
+    [C2.uc13.x,      C2.uc13.y+ERY]
+  ]});
+
+  // Analyst → UC14 (Export): below system
+  conn.push({type:'assoc', pts:[
+    [A.analyst.x+14, A.analyst.y+42],
+    [A.analyst.x+14, SYS.y+SYS.h+35],
+    [C2.uc14.x,      SYS.y+SYS.h+35],
+    [C2.uc14.x,      C2.uc14.y+ERY]
+  ]});
+
+  // Admin → UC13 (Browse): straight right to left edge
+  conn.push({type:'assoc', pts:[aCtr(A.admin), [C2.uc13.x-ERX, C2.uc13.y]]});
+
+  // Admin → UC11 (Anomaly flags): straight right to left edge
+  conn.push({type:'assoc', pts:[
+    [A.admin.x+14, A.admin.y+14],
+    [A.admin.x+14, C2.uc11.y],
+    [C2.uc11.x-ERX, C2.uc11.y]
+  ]});
+
+  // UC04 → OpenAI: straight right
+  conn.push({type:'assoc', pts:[[C2.uc04.x+ERX, C2.uc04.y],[A.openai.x-14,A.openai.y+10]]});
+  // UC05 → OpenAI: goes right then up
+  conn.push({type:'assoc', pts:[
+    [C2.uc05.x+ERX, C2.uc05.y],
+    [SYS.x+SYS.w+20, C2.uc05.y],
+    [SYS.x+SYS.w+20, A.openai.y+20],
+    [A.openai.x-14,  A.openai.y+20]
+  ]});
+  // UC06 → OpenAI: goes right then up more
+  conn.push({type:'assoc', pts:[
+    [C2.uc06.x+ERX, C2.uc06.y],
+    [SYS.x+SYS.w+35, C2.uc06.y],
+    [SYS.x+SYS.w+35, A.openai.y+30],
+    [A.openai.x-14,  A.openai.y+30]
+  ]});
+
+  // ── INCLUDE CHAINS (dashed with arrowhead) ──
+
+  // UC01 →include→ UC02: downward within col A
+  conn.push({type:'include',label:'«include»', pts:[
+    [C2.uc01.x, C2.uc01.y+ERY],
+    [C2.uc02.x, C2.uc02.y-ERY]
+  ]});
+
+  // UC01 →include→ UC03: skip rows — route down left side of col A
+  conn.push({type:'include',label:'«include»', pts:[
+    [C2.uc01.x-ERX+10, C2.uc01.y+ERY],
+    [C2.uc01.x-ERX-15, C2.uc01.y+ERY],
+    [C2.uc01.x-ERX-15, C2.uc03.y],
+    [C2.uc03.x-ERX,    C2.uc03.y]
+  ]});
+
+  // UC03 →include→ UC04: horizontal right to col B
+  conn.push({type:'include',label:'«include»', pts:[
+    [C2.uc03.x+ERX, C2.uc03.y],
+    // Route UP to UC04's row before entering
+    [C2.uc03.x+ERX+30, C2.uc03.y],
+    [C2.uc03.x+ERX+30, C2.uc04.y],
+    [C2.uc04.x-ERX,    C2.uc04.y]
+  ]});
+
+  // UC04 →include→ UC05: down within col B
+  conn.push({type:'include',label:'«include»', pts:[
+    [C2.uc04.x, C2.uc04.y+ERY],
+    [C2.uc05.x, C2.uc05.y-ERY]
+  ]});
+
+  // UC04 →include→ UC06: skip — route right of col B
+  conn.push({type:'include',label:'«include»', pts:[
+    [C2.uc04.x+ERX-10, C2.uc04.y+ERY],
+    [C2.uc04.x+ERX+16, C2.uc04.y+ERY],
+    [C2.uc04.x+ERX+16, C2.uc06.y],
+    [C2.uc06.x-ERX,    C2.uc06.y]
+  ]});
+
+  // UC04 →include→ UC12: horizontal right, skipping col C, go to col D
+  conn.push({type:'include',label:'«include»', pts:[
+    [C2.uc04.x+ERX, C2.uc04.y],
+    // Route above UC08 (col C y=280)
+    [C2.uc08.x,     C2.uc04.y],
+    [C2.uc08.x,     SYS.y+30],
+    [C2.uc12.x,     SYS.y+30],
+    [C2.uc12.x,     C2.uc12.y-ERY]
+  ]});
+
+  // UC05 →include→ UC09: horizontal right to col C
+  conn.push({type:'include',label:'«include»', pts:[
+    [C2.uc05.x+ERX, C2.uc05.y],
+    [C2.uc09.x-ERX, C2.uc09.y]
+  ]});
+
+  // UC07 →include→ UC11: horizontal right to col C
+  conn.push({type:'include',label:'«include»', pts:[
+    [C2.uc07.x+ERX, C2.uc07.y],
+    [C2.uc11.x-ERX, C2.uc11.y]
+  ]});
+
+  // ── EXTEND ──
+
+  // UC07 →extend→ UC04: route LEFT of col B, go up
+  conn.push({type:'extend',label:'«extend»', pts:[
+    [C2.uc07.x-ERX,    C2.uc07.y],
+    [C2.uc07.x-ERX-18, C2.uc07.y],
+    [C2.uc07.x-ERX-18, C2.uc04.y],
+    [C2.uc04.x-ERX,    C2.uc04.y]
+  ]});
+
+  // UC10 →extend→ UC08: route UP within col C
+  conn.push({type:'extend',label:'«extend»', pts:[
+    [C2.uc10.x+ERX-10, C2.uc10.y-ERY],
+    [C2.uc10.x+ERX+14, C2.uc10.y-ERY],
+    [C2.uc10.x+ERX+14, C2.uc08.y],
+    [C2.uc08.x+ERX,    C2.uc08.y]
+  ]});
+
+  return conn;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// DRAW HELPERS
+// ─────────────────────────────────────────────────────────────────
+
+function drawDefs(svg){
+  const defs=N('defs');
+  function mkArr(id,col){
+    const m=N('marker',{id,markerWidth:'9',markerHeight:'7',refX:'8',refY:'3.5',orient:'auto'});
+    m.appendChild(N('polygon',{points:'0 0,9 3.5,0 7',fill:col}));
+    defs.appendChild(m);
+  }
+  mkArr('mInc', C.include);
+  mkArr('mExt', C.extend);
+  mkArr('mAss', C.assoc);
+  svg.appendChild(defs);
+}
+
+function polyline(svg, pts, stroke, dash, marker, opacity){
+  if(pts.length<2) return;
+  const d='M'+pts.map(p=>p[0]+','+p[1]).join(' L');
+  svg.appendChild(N('path',{
+    d, fill:'none', stroke,
+    'stroke-width': marker?'1.1':'1.3',
+    'stroke-dasharray': dash||'none',
+    'marker-end': marker||'',
+    opacity: String(opacity||0.75),
+    'stroke-linecap':'round',
+    'stroke-linejoin':'round'
+  }));
+}
+
+function drawLabel(svg, pts, text, col){
+  // Place label on the longest segment
+  let best=0, bestLen=0;
+  for(let i=1;i<pts.length;i++){
+    const dx=pts[i][0]-pts[i-1][0], dy=pts[i][1]-pts[i-1][1];
+    const len=Math.sqrt(dx*dx+dy*dy);
+    if(len>bestLen){bestLen=len;best=i;}
+  }
+  const mx=(pts[best][0]+pts[best-1][0])/2;
+  const my=(pts[best][1]+pts[best-1][1])/2;
+  const tw=text.length*5.8+10;
+  svg.appendChild(N('rect',{x:mx-tw/2,y:my-8,width:tw,height:14,rx:2,fill:'#090d13',opacity:'0.92'}));
+  const t=N('text',{x:mx,y:my,'text-anchor':'middle','dominant-baseline':'middle',
+    fill:col,style:'font-size:7.5px;font-family:DM Mono,monospace;letter-spacing:0.3px;'});
+  t.textContent=text;
+  svg.appendChild(t);
+}
+
+function drawConnection(svg, conn){
+  const isAssoc=conn.type==='assoc';
+  const isInc=conn.type==='include';
+  const col=isAssoc?C.assoc:isInc?C.include:C.extend;
+  const dash=isAssoc?'none':'6,4';
+  const marker=isAssoc?null:(isInc?'url(#mInc)':'url(#mExt)');
+  const opacity=isAssoc?0.45:0.82;
+  polyline(svg, conn.pts, col, dash, marker, opacity);
+  if(conn.label) drawLabel(svg, conn.pts, conn.label, col);
+}
+
+function drawSysBox(svg){
+  svg.appendChild(N('rect',{
+    x:SYS.x,y:SYS.y,width:SYS.w,height:SYS.h,rx:6,
+    fill:'none',stroke:'#1e3a5f','stroke-width':1.2,'stroke-dasharray':'10,5'
+  }));
+  const bgr=N('rect',{x:SYS.x+14,y:SYS.y-10,width:264,height:20,rx:3,fill:'#090d13'});
+  svg.appendChild(bgr);
+  const t=N('text',{x:SYS.x+22,y:SYS.y+1,'dominant-baseline':'middle',
+    fill:'#253a5f',style:'font-size:10px;font-family:DM Mono,monospace;font-weight:600;letter-spacing:1px;'});
+  t.textContent='SYSTEM BOUNDARY — LENS ENGINE';
+  svg.appendChild(t);
+
+  // Group labels inside boundary
+  function grpLabel(text,x,y){
+    const tw=text.length*6+16;
+    svg.appendChild(N('rect',{x:x-8,y:y-9,width:tw,height:16,rx:2,fill:'rgba(30,58,95,0.3)'}));
+    const t=N('text',{x,y,'dominant-baseline':'middle',
+      fill:'#253a5f',style:'font-size:8px;font-family:DM Mono,monospace;font-weight:700;letter-spacing:1.2px;'});
+    t.textContent=text;svg.appendChild(t);
+  }
+  grpLabel('INPUT',          SYS.x+50,  SYS.y+22);
+  grpLabel('NLP PIPELINE',   SYS.x+310, SYS.y+22);
+  grpLabel('VISUALISATION',  SYS.x+556, SYS.y+22);
+  grpLabel('PERSISTENCE',    SYS.x+790, SYS.y+22);
+
+  // Vertical dividers between groups
+  function vDiv(x){
+    svg.appendChild(N('line',{
+      x1:x,y1:SYS.y+36,x2:x,y2:SYS.y+SYS.h-10,
+      stroke:'#151f30','stroke-width':1,'stroke-dasharray':'4,6'
+    }));
+  }
+  vDiv(SYS.x+215);  // Input | Pipeline
+  vDiv(SYS.x+450);  // Pipeline | Visualisation
+  vDiv(SYS.x+682);  // Visualisation | Persistence
+}
+
+function drawCase(svg, uc){
+  const col=domCol(uc.domain);
+  const g=N('g',{style:'cursor:pointer;'});
+  // Outer glow
+  g.appendChild(N('ellipse',{cx:uc.x,cy:uc.y,rx:ERX+5,ry:ERY+5,
+    fill:'none',stroke:col,'stroke-width':0.5,opacity:'0.15'}));
+  // Body
+  g.appendChild(N('ellipse',{cx:uc.x,cy:uc.y,rx:ERX,ry:ERY,
+    fill:'#060f1a',stroke:col,'stroke-width':1.5}));
+  // Label lines
+  const lines=uc.label.split('\n');
+  const lh=14, tot=(lines.length-1)*lh;
+  lines.forEach((ln,i)=>{
+    const t=N('text',{x:uc.x,y:uc.y-tot/2+i*lh,
+      'text-anchor':'middle','dominant-baseline':'middle',
+      fill:C.text,style:'font-size:10px;font-family:Syne,sans-serif;font-weight:700;'});
+    t.textContent=ln;g.appendChild(t);
+  });
+  // ID badge (top-right of ellipse)
+  const idStr=uc.id.replace('uc','UC-').replace('UC-0','UC-0');
+  const bid=N('text',{x:uc.x+ERX-3,y:uc.y-ERY+8,'text-anchor':'end',
+    fill:col,style:'font-size:7px;font-family:DM Mono,monospace;font-weight:600;opacity:0.7;'});
+  bid.textContent=idStr;g.appendChild(bid);
+  // Domain dot (bottom-right)
+  g.appendChild(N('circle',{cx:uc.x+ERX-7,cy:uc.y+ERY-7,r:4,fill:col,opacity:'0.6'}));
+
+  g.addEventListener('mouseenter',()=>{
+    document.getElementById('info-title').textContent=uc.detail||uc.id;
+    document.getElementById('info-desc').textContent=uc.desc||'';
+    document.getElementById('info').style.display='block';
+  });
+  g.addEventListener('mouseleave',()=>{
+    document.getElementById('info').style.display='none';
+  });
+  svg.appendChild(g);
+}
+
+function drawActor(svg, a){
+  const g=N('g',{style:'cursor:default;'});
+  // Head
+  g.appendChild(N('circle',{cx:a.x,cy:a.y,r:12,fill:'#0a1520',stroke:C.text,'stroke-width':1.4}));
+  // Body
+  g.appendChild(N('line',{x1:a.x,y1:a.y+12,x2:a.x,y2:a.y+42,stroke:C.text,'stroke-width':1.4}));
+  // Arms
+  g.appendChild(N('line',{x1:a.x-17,y1:a.y+22,x2:a.x+17,y2:a.y+22,stroke:C.text,'stroke-width':1.4}));
+  // Legs
+  g.appendChild(N('line',{x1:a.x,y1:a.y+42,x2:a.x-14,y2:a.y+60,stroke:C.text,'stroke-width':1.4}));
+  g.appendChild(N('line',{x1:a.x,y1:a.y+42,x2:a.x+14,y2:a.y+60,stroke:C.text,'stroke-width':1.4}));
+  // Name
+  const nl=N('text',{x:a.x,y:a.y+76,'text-anchor':'middle',
+    fill:C.text,style:'font-size:11px;font-family:Syne,sans-serif;font-weight:700;'});
+  nl.textContent=a.label;g.appendChild(nl);
+  const sl=N('text',{x:a.x,y:a.y+89,'text-anchor':'middle',
+    fill:C.muted,style:'font-size:8px;font-family:DM Mono,monospace;'});
+  sl.textContent=a.sub;g.appendChild(sl);
+  svg.appendChild(g);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// MAIN BUILD
+// ─────────────────────────────────────────────────────────────────
+let currentTab='full';
+
+function build(){
+  const svg=document.getElementById('canvas');
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  svg.setAttribute('width','1500');
+  svg.setAttribute('height','920');
+  drawDefs(svg);
+
+  // Background
+  svg.appendChild(N('rect',{x:0,y:0,width:1500,height:920,fill:'#090d13'}));
+
+  // Domain-agnostic banner
+  svg.appendChild(N('rect',{x:400,y:10,width:500,height:22,rx:3,
+    fill:'rgba(0,201,167,.04)',stroke:'rgba(0,201,167,.12)','stroke-width':0.8}));
+  const bt=N('text',{x:650,y:21,'text-anchor':'middle','dominant-baseline':'middle',
+    fill:'#1e5040',style:'font-size:8px;font-family:DM Mono,monospace;letter-spacing:1px;'});
+  bt.textContent='DOMAIN-AGNOSTIC: CX · HR · OPS — same system, context varies by framing';
+  svg.appendChild(bt);
+
+  // Tab framing label
+  if(currentTab!=='full'){
+    const labels={cx:'FRAMING: CUSTOMER EXPERIENCE  ·  NPS · CSAT · support tickets',
+                  hr:'FRAMING: PEOPLE & CULTURE  ·  employee surveys · exit interviews · eNPS',
+                  ops:'FRAMING: SERVICE OPERATIONS  ·  support tickets · incident reports · ops logs'};
+    const ft=N('text',{x:650,y:38,'text-anchor':'middle',
+      fill:'#1e3048',style:'font-size:8.5px;font-family:DM Mono,monospace;font-weight:600;letter-spacing:0.8px;'});
+    ft.textContent=labels[currentTab]||'';svg.appendChild(ft);
+  }
+
+  // Connections FIRST (behind everything)
+  buildConnections().forEach(c=>drawConnection(svg,c));
+
+  // System boundary
+  drawSysBox(svg);
+
+  // Use cases
+  CASES.forEach(uc=>{
+    const show=currentTab==='full'||uc.domain==='all'||uc.domain===currentTab;
+    if(show) drawCase(svg,uc);
+    else {
+      // Faded ghost for non-active domain
+      svg.appendChild(N('ellipse',{cx:uc.x,cy:uc.y,rx:ERX,ry:ERY,
+        fill:'none',stroke:'#1a2535','stroke-width':0.8,opacity:'0.3'}));
+    }
+  });
+
+  // Actors
+  ACTORS.forEach(a=>drawActor(svg,a));
+
+  // Footer
+  const ft=N('text',{x:1490,y:910,'text-anchor':'end',
+    fill:'#141e2e',style:'font-size:8px;font-family:DM Mono,monospace;'});
+  ft.textContent='LENS_UCD_001 · S4 PORTFOLIO 2026';svg.appendChild(ft);
+}
+
+// Tab control
+const tabLabels={cx:'CX',hr:'HR',ops:'OPS'};
+function setTab(id,el){
+  currentTab=id;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  ['badge-cx','badge-hr','badge-ops'].forEach(b=>{
+    document.querySelector('.'+b).style.opacity=(id==='full'||b.includes(id))?'1':'0.25';
+  });
+  build();
+  setTimeout(resetView,30);
+}
+
+// Pan & Zoom
+let scale=1,tx=20,ty=20,dragging=false,lx=0,ly=0;
+function applyT(){
+  document.getElementById('canvas').style.transform=`translate(${tx}px,${ty}px) scale(${scale})`;
+}
+function resetView(){
+  const vc=document.getElementById('vc');
+  const vw=vc.clientWidth, vh=vc.clientHeight;
+  scale=Math.min((vw-40)/1500,(vh-40)/920,1);
+  tx=20;ty=20;applyT();
+}
+function zoomBy(f){
+  const vc=document.getElementById('vc');
+  const cx=vc.clientWidth/2,cy=vc.clientHeight/2;
+  tx=cx-(cx-tx)*f;ty=cy-(cy-ty)*f;scale*=f;applyT();
+}
+const vc=document.getElementById('vc');
+vc.addEventListener('mousedown',e=>{dragging=true;lx=e.clientX;ly=e.clientY;vc.classList.add('dragging');});
+window.addEventListener('mouseup',()=>{dragging=false;vc.classList.remove('dragging');});
+window.addEventListener('mousemove',e=>{
+  if(!dragging)return;
+  tx+=e.clientX-lx;ty+=e.clientY-ly;lx=e.clientX;ly=e.clientY;applyT();
+});
+vc.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const f=e.deltaY<0?1.1:0.9;
+  const r=vc.getBoundingClientRect();
+  const mx=e.clientX-r.left,my=e.clientY-r.top;
+  tx=mx-(mx-tx)*f;ty=my-(my-ty)*f;scale*=f;applyT();
+},{passive:false});
+
+window.addEventListener('load',()=>{
+  build();
+  setTimeout(resetView,50);
+});
+</script>
+</body>
+</html>

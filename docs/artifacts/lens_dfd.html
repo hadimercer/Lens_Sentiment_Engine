@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Lens — Data Flow Diagrams</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap');
+:root{
+  --bg:#090d13;--surface:#0e1520;--surface2:#131c28;--border:#1a2535;
+  --accent:#00c9a7;--accent2:#3d7fff;
+  --text:#c8daf0;--muted:#4a6278;--dim:#1e3048;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Syne',system-ui,sans-serif;
+  display:flex;height:100vh;overflow:hidden;}
+#sb{width:255px;min-width:255px;background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;}
+.sb-head{padding:16px 14px 12px;border-bottom:1px solid var(--border);}
+.logo{font-size:18px;font-weight:800;background:linear-gradient(135deg,#00c9a7,#3d7fff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.sb-sub{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);
+  margin-top:3px;font-family:'DM Mono',monospace;}
+.sb-nav{flex:1;overflow-y:auto;padding:8px 0;}
+.wfl{font-size:7.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  color:var(--dim);padding:10px 14px 4px;font-family:'DM Mono',monospace;}
+.ni{display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;
+  border-left:3px solid transparent;transition:all .12s;}
+.ni:hover{background:var(--surface2);}
+.ni.active{background:rgba(0,201,167,.07);border-left-color:var(--accent);}
+.nb{font-size:7px;font-weight:700;font-family:'DM Mono',monospace;padding:2px 6px;border-radius:3px;flex-shrink:0;}
+.nb-l0{background:rgba(0,201,167,.12);color:var(--accent);}
+.nb-l1{background:rgba(61,127,255,.12);color:#3d7fff;}
+.nt{font-size:11px;font-weight:600;flex:1;line-height:1.3;}
+.ni.active .nt{color:var(--accent);}
+.sb-foot{padding:10px 14px;border-top:1px solid var(--border);}
+.sb-note{font-size:8.5px;font-family:'DM Mono',monospace;color:var(--muted);line-height:1.7;}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+#hdr{height:52px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 18px;gap:10px;flex-shrink:0;}
+.hid{font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);
+  background:rgba(0,201,167,.1);padding:3px 8px;border-radius:3px;}
+.htitle{font-size:12px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hlvl{font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  font-family:'DM Mono',monospace;}
+.hlvl-l0{color:var(--accent);}
+.hlvl-l1{color:#3d7fff;}
+.hreqs{font-family:'DM Mono',monospace;font-size:8.5px;color:var(--muted);white-space:nowrap;}
+.ctrls{display:flex;gap:4px;margin-left:6px;}
+.cb{background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  padding:4px 10px;border-radius:3px;font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;}
+.cb:hover{border-color:var(--accent);color:var(--accent);}
+#vc{flex:1;position:relative;overflow:hidden;background:var(--bg);cursor:grab;}
+#vc.drag{cursor:grabbing;}
+.dc{position:absolute;top:0;left:0;display:none;transform-origin:0 0;}
+.dc.vis{display:block;}
+#leg{position:absolute;bottom:12px;right:12px;background:var(--surface);
+  border:1px solid var(--border);border-radius:6px;padding:11px 13px;z-index:20;
+  font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);}
+.lt{font-weight:700;color:var(--text);font-size:8px;letter-spacing:2px;
+  text-transform:uppercase;margin-bottom:7px;}
+.lr{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+.ls{width:26px;height:14px;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div id="sb">
+  <div class="sb-head">
+    <div class="logo">Lens</div>
+    <div class="sb-sub">Data Flow Diagrams · S4 Portfolio</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="wfl">Context Level</div>
+    <div class="ni active" onclick="show('l0',this)"><span class="nb nb-l0">L0</span><span class="nt">Context Diagram</span></div>
+    <div class="wfl">Process Level</div>
+    <div class="ni" onclick="show('l1',this)"><span class="nb nb-l1">L1</span><span class="nt">Batch Ingestion & Validation</span></div>
+    <div class="ni" onclick="show('l2',this)"><span class="nb nb-l1">L1</span><span class="nt">NLP Pipeline Execution</span></div>
+    <div class="ni" onclick="show('l3',this)"><span class="nb nb-l1">L1</span><span class="nt">Results Visualisation & Storage</span></div>
+  </nav>
+  <div class="sb-foot">
+    <div class="sb-note">All flows are hand-routed.<br>No line crosses a node it<br>does not connect to.</div>
+  </div>
+</div>
+<div id="main">
+  <div id="hdr">
+    <span class="hid" id="hid">DFD-L0</span>
+    <span class="htitle" id="htitle">L0 Context Diagram — Lens System Overview</span>
+    <span class="hlvl hlvl-l0" id="hlvl">CONTEXT</span>
+    <span class="hreqs" id="hreqs">System boundary · external entities · primary data flows</span>
+    <div class="ctrls">
+      <button class="cb" onclick="zoomFit()">Fit</button>
+      <button class="cb" onclick="zoomBy(1.2)">+</button>
+      <button class="cb" onclick="zoomBy(0.8)">−</button>
+    </div>
+  </div>
+  <div id="vc">
+    <div class="dc vis" id="c-l0"></div>
+    <div class="dc" id="c-l1"></div>
+    <div class="dc" id="c-l2"></div>
+    <div class="dc" id="c-l3"></div>
+    <div id="leg">
+      <div class="lt">Notation</div>
+      <div class="lr"><svg class="ls" viewBox="0 0 26 14"><rect x="1" y="2" width="24" height="10" rx="1" fill="#050d10" stroke="#00c9a7" stroke-width="1.2"/></svg><span>External entity</span></div>
+      <div class="lr"><svg class="ls" viewBox="0 0 26 14"><circle cx="13" cy="7" r="5" fill="#050d10" stroke="#3d7fff" stroke-width="1.2"/></svg><span>Process</span></div>
+      <div class="lr"><svg class="ls" viewBox="0 0 26 14"><line x1="1" y1="3" x2="25" y2="3" stroke="#9d6fff" stroke-width="1.1"/><line x1="1" y1="11" x2="25" y2="11" stroke="#9d6fff" stroke-width="1.1"/></svg><span>Data store</span></div>
+      <div class="lr"><svg class="ls" viewBox="0 0 26 14"><line x1="0" y1="7" x2="17" y2="7" stroke="#4a6a8a" stroke-width="1.2"/><polygon points="17,4 25,7 17,10" fill="#4a6a8a"/></svg><span>Data flow</span></div>
+      <div class="lr"><svg class="ls" viewBox="0 0 26 14"><line x1="0" y1="7" x2="17" y2="7" stroke="#4a6a8a" stroke-width="1.2" stroke-dasharray="4,2"/><polygon points="17,4 25,7 17,10" fill="#4a6a8a"/></svg><span>Return flow</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SVG_NS='http://www.w3.org/2000/svg';
+function N(tag,a){const e=document.createElementNS(SVG_NS,tag);for(const[k,v]of Object.entries(a||{}))e.setAttribute(k,v);return e;}
+
+const C={
+  entity:'#00c9a7', eFill:'#030d09',
+  proc:'#3d7fff',   pFill:'#030810',
+  store:'#9d6fff',  sFill:'#080412',
+  p1:'#00c9a7',p2:'#3d7fff',p3:'#d4a843',ext:'#9d6fff',
+  red:'#e05252',amber:'#f0a040',
+  flow:'#3a5a78',text:'#c8daf0',muted:'#4a6278',
+};
+
+// ── Arrow markers ──────────────────────────────────────────────────
+const _mk={};
+function marker(svg,col){
+  const id='mk'+col.replace('#','');
+  if(!_mk[id]){
+    let defs=svg.querySelector('defs');
+    if(!defs){defs=N('defs');svg.insertBefore(defs,svg.firstChild);}
+    const m=N('marker',{id,markerWidth:'9',markerHeight:'7',refX:'8',refY:'3.5',orient:'auto'});
+    m.appendChild(N('polygon',{points:'0 0,9 3.5,0 7',fill:col}));
+    defs.appendChild(m);_mk[id]=true;
+  }
+  return 'url(#'+id+')';
+}
+
+// ── SVG factory ────────────────────────────────────────────────────
+function mkSVG(container,w,h){
+  const svg=document.createElementNS(SVG_NS,'svg');
+  svg.setAttribute('width',w);svg.setAttribute('height',h);
+  container.appendChild(svg);
+  svg.appendChild(N('defs'));
+  return svg;
+}
+
+// ── PRIMITIVES ─────────────────────────────────────────────────────
+
+function entity(svg,x,y,w,h,lines,sub){
+  const g=N('g');
+  g.appendChild(N('rect',{x,y,width:w,height:h,rx:3,fill:C.eFill,stroke:C.entity,'stroke-width':1.4}));
+  g.appendChild(N('line',{x1:x+6,y1:y,x2:x+w-6,y2:y,stroke:C.entity,'stroke-width':2.8,'stroke-linecap':'round'}));
+  const lns=Array.isArray(lines)?lines:[lines];
+  const lh=16,tot=(lns.length-1)*lh;
+  const baseY=sub?y+h/2-tot/2-6:y+h/2-tot/2+2;
+  lns.forEach((ln,i)=>{
+    const t=N('text',{x:x+w/2,y:baseY+i*lh,'text-anchor':'middle','dominant-baseline':'middle',
+      fill:C.text,style:'font-size:11px;font-family:Syne,sans-serif;font-weight:700;'});
+    t.textContent=ln;g.appendChild(t);
+  });
+  if(sub){
+    const s=N('text',{x:x+w/2,y:y+h-10,'text-anchor':'middle','dominant-baseline':'middle',
+      fill:C.muted,style:'font-size:8px;font-family:DM Mono,monospace;'});
+    s.textContent=sub;g.appendChild(s);
+  }
+  svg.appendChild(g);
+  return {x,y,w,h,cx:x+w/2,cy:y+h/2,r:x,l:x+w,t:y,b:y+h};
+}
+
+function proc(svg,cx,cy,r,num,lines,col){
+  col=col||C.proc;
+  const lns=Array.isArray(lines)?lines:[lines];
+  const g=N('g');
+  g.appendChild(N('circle',{cx,cy,r:r+4,fill:'none',stroke:col,'stroke-width':0.4,opacity:'0.2'}));
+  g.appendChild(N('circle',{cx,cy,r,fill:C.pFill,stroke:col,'stroke-width':1.6}));
+  g.appendChild(N('circle',{cx,cy:cy-r+11,r:10,fill:col}));
+  const nt=N('text',{x:cx,y:cy-r+11,'text-anchor':'middle','dominant-baseline':'middle',
+    fill:'#090d13',style:'font-size:8px;font-family:DM Mono,monospace;font-weight:700;'});
+  nt.textContent=num;g.appendChild(nt);
+  const lh=15,tot=(lns.length-1)*lh;
+  lns.forEach((ln,i)=>{
+    const t=N('text',{x:cx,y:cy-tot/2+i*lh,'text-anchor':'middle','dominant-baseline':'middle',
+      fill:C.text,style:'font-size:10.5px;font-family:Syne,sans-serif;font-weight:700;'});
+    t.textContent=ln;g.appendChild(t);
+  });
+  svg.appendChild(g);
+  return {cx,cy,r,l:cx-r,ri:cx+r,t:cy-r,b:cy+r};
+}
+
+function subProc(svg,cx,cy,rx,ry,num,lines,col){
+  col=col||C.proc;
+  const lns=Array.isArray(lines)?lines:[lines];
+  const g=N('g');
+  g.appendChild(N('ellipse',{cx,cy,rx:rx+4,ry:ry+4,fill:'none',stroke:col,'stroke-width':0.3,opacity:'0.2'}));
+  g.appendChild(N('ellipse',{cx,cy,rx,ry,fill:'#030810',stroke:col,'stroke-width':1.4}));
+  const bw=Math.max(num.length*7+8,26);
+  g.appendChild(N('rect',{x:cx-bw/2,y:cy-ry+2,width:bw,height:16,rx:8,fill:col}));
+  const nt=N('text',{x:cx,y:cy-ry+10,'text-anchor':'middle','dominant-baseline':'middle',
+    fill:'#090d13',style:'font-size:8px;font-family:DM Mono,monospace;font-weight:700;'});
+  nt.textContent=num;g.appendChild(nt);
+  const lh=14,tot=(lns.length-1)*lh;
+  lns.forEach((ln,i)=>{
+    const t=N('text',{x:cx,y:cy-tot/2+i*lh+2,'text-anchor':'middle','dominant-baseline':'middle',
+      fill:C.text,style:'font-size:9.5px;font-family:Syne,sans-serif;font-weight:700;'});
+    t.textContent=ln;g.appendChild(t);
+  });
+  svg.appendChild(g);
+  return {cx,cy,rx,ry,l:cx-rx,ri:cx+rx,t:cy-ry,b:cy+ry};
+}
+
+function store(svg,x,y,w,h,id,label){
+  const g=N('g');
+  g.appendChild(N('line',{x1:x,y1:y,x2:x+w,y2:y,stroke:C.store,'stroke-width':1.4}));
+  g.appendChild(N('line',{x1:x,y1:y+h,x2:x+w,y2:y+h,stroke:C.store,'stroke-width':1.4}));
+  g.appendChild(N('rect',{x,y,width:38,height:h,fill:'rgba(157,111,255,.1)'}));
+  g.appendChild(N('line',{x1:x+38,y1:y,x2:x+38,y2:y+h,stroke:C.store,'stroke-width':0.7,opacity:'0.5'}));
+  const it=N('text',{x:x+19,y:y+h/2,'text-anchor':'middle','dominant-baseline':'middle',
+    fill:C.store,style:'font-size:9px;font-family:DM Mono,monospace;font-weight:600;'});
+  it.textContent=id;g.appendChild(it);
+  const lt=N('text',{x:x+46,y:y+h/2,'dominant-baseline':'middle',
+    fill:C.text,style:'font-size:10px;font-family:Syne,sans-serif;font-weight:600;'});
+  lt.textContent=label;g.appendChild(lt);
+  svg.appendChild(g);
+  return {x,y,w,h,cx:x+w/2,cy:y+h/2,l:x,r:x+w,t:y,b:y+h};
+}
+
+// ── FLOW (polyline with label on longest segment) ──────────────────
+function flow(svg,pts,label,col,dashed){
+  col=col||C.flow;
+  if(pts.length<2)return;
+  const d='M'+pts.map(p=>p[0]+','+p[1]).join(' L');
+  svg.appendChild(N('path',{d,fill:'none',stroke:col,
+    'stroke-width':'1.3','stroke-dasharray':dashed?'6,4':'none',
+    'marker-end':marker(svg,col),'stroke-linecap':'round','stroke-linejoin':'round',
+    opacity:'0.82'}));
+  if(label){
+    // Longest segment midpoint
+    let bi=1,bl=0;
+    for(let i=1;i<pts.length;i++){
+      const dx=pts[i][0]-pts[i-1][0],dy=pts[i][1]-pts[i-1][1];
+      const l=Math.sqrt(dx*dx+dy*dy);
+      if(l>bl){bl=l;bi=i;}
+    }
+    const mx=(pts[bi][0]+pts[bi-1][0])/2;
+    const my=(pts[bi][1]+pts[bi-1][1])/2;
+    const tw=label.length*5.5+10;
+    svg.appendChild(N('rect',{x:mx-tw/2,y:my-8,width:tw,height:14,rx:2,fill:'#090d13',opacity:'0.93'}));
+    const lt=N('text',{x:mx,y:my,'text-anchor':'middle','dominant-baseline':'middle',
+      fill:col,style:'font-size:8px;font-family:DM Mono,monospace;letter-spacing:0.3px;'});
+    lt.textContent=label;svg.appendChild(lt);
+  }
+}
+
+function hdr(svg,W,text,col){
+  col=col||'#0a1018';
+  svg.appendChild(N('rect',{x:0,y:0,width:W,height:34,fill:col}));
+  const t=N('text',{x:16,y:17,'dominant-baseline':'middle',
+    fill:'#1e3a4a',style:'font-size:8.5px;font-family:DM Mono,monospace;font-weight:700;letter-spacing:1.2px;'});
+  t.textContent=text;svg.appendChild(t);
+}
+
+function note(svg,x,y,badge,text){
+  const bw=badge.length*7+10;
+  svg.appendChild(N('rect',{x,y:y-8,width:bw,height:14,rx:2,fill:'rgba(30,50,80,0.2)'}));
+  const bt=N('text',{x:x+bw/2,y,'text-anchor':'middle','dominant-baseline':'middle',
+    fill:'#2a4060',style:'font-size:7.5px;font-family:DM Mono,monospace;font-weight:700;'});
+  bt.textContent=badge;svg.appendChild(bt);
+  const tt=N('text',{x:x+bw+8,y,'dominant-baseline':'middle',
+    fill:'#253040',style:'font-size:8px;font-family:DM Mono,monospace;'});
+  tt.textContent=text;svg.appendChild(tt);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// L0 — CONTEXT DIAGRAM
+// Layout (1100×620):
+//   Analyst    left  col  x=60   y=180  (entity 150×65)
+//   Admin      left  col  x=60   y=380  (entity 150×60)
+//   Lens P0    centre      x=550  y=310  r=95
+//   OpenAI     right col  x=900  y=180  (entity 150×65)
+//   PostgreSQL right col  x=900  y=380  (entity 150×60)
+//
+//  Routing corridors:
+//   Top horizontal:    y=80
+//   Bottom horizontal: y=530
+//   Left vertical:     x=35
+//   Right vertical:    x=1065
+// ══════════════════════════════════════════════════════════════════
+function buildL0(container){
+  const W=1100,H=620;
+  const svg=mkSVG(container,W,H);
+
+  svg.appendChild(N('rect',{x:0,y:0,width:W,height:H,fill:'#090d13'}));
+
+  // Banner
+  svg.appendChild(N('rect',{x:310,y:12,width:480,height:22,rx:3,
+    fill:'rgba(0,201,167,.04)',stroke:'rgba(0,201,167,.12)','stroke-width':0.8}));
+  const bt=N('text',{x:550,y:23,'text-anchor':'middle','dominant-baseline':'middle',
+    fill:'#1e5040',style:'font-size:8px;font-family:DM Mono,monospace;letter-spacing:1px;'});
+  bt.textContent='DOMAIN-AGNOSTIC: CX · HR · OPS — same system, context varies by framing';
+  svg.appendChild(bt);
+
+  // Nodes
+  const P=proc(svg,550,310,95,'P0',['Lens','Engine'],C.p1);
+  const An=entity(svg,30,175,150,68,['Analyst'],'CX / HR / Ops');
+  const OA=entity(svg,920,175,150,68,['OpenAI','API'],'External NLP');
+  const Ad=entity(svg,30,370,150,62,['Admin'],'Optional Reviewer');
+  const PG=entity(svg,920,370,150,62,['PostgreSQL'],'Analysis History');
+
+  // ── Analyst → Lens (top): y=210 corridor
+  flow(svg,[[180,210],[455,210],[455,240]],'Batch text + domain label',C.p1);
+
+  // ── Lens → Analyst (return): y=340 corridor goes left
+  flow(svg,[[455,350],[455,390],[280,390],[280,243],[180,243]],'Analysis dashboard',C.p1,true);
+
+  // ── Lens → OpenAI: y=210
+  flow(svg,[[645,250],[740,210],[920,210]],'NLP prompts',C.p2);
+
+  // ── OpenAI → Lens (return): y=243
+  flow(svg,[[920,243],[840,243],[645,280]],'Scored results + themes',C.p2,true);
+
+  // ── Admin → Lens: straight line to bottom of P0
+  flow(svg,[[180,401],[320,401],[320,380],[455,380]],'Browse analyses',C.muted,true);
+
+  // ── Lens → PostgreSQL: y=380 corridor goes right
+  flow(svg,[[645,350],[780,350],[780,401],[920,401]],'Analysis result JSON',C.ext);
+
+  // ── PostgreSQL → Lens (return): y=420
+  flow(svg,[[920,422],[800,422],[800,370],[645,370]],'Historical records',C.ext,true);
+
+  // Footer note
+  const fn=N('text',{x:550,y:H-12,'text-anchor':'middle',
+    fill:'#182030',style:'font-size:8px;font-family:DM Mono,monospace;'});
+  fn.textContent='CSV export is a file download — no external system shown';svg.appendChild(fn);
+
+  const id=N('text',{x:W-10,y:H-12,'text-anchor':'end',
+    fill:'#151e2e',style:'font-size:8px;font-family:DM Mono,monospace;'});
+  id.textContent='LENS_DFD_L0 · S4 PORTFOLIO 2026';svg.appendChild(id);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// L1 — BATCH INGESTION & VALIDATION
+//
+// Grid (1200×700):
+//   ENTITIES:
+//     Analyst: x=40, y=140  (150×65)
+//
+//   PROCESS ROW (y=250, all subProcs rx=70 ry=38):
+//     P1.1  cx=280
+//     P1.2  cx=500
+//     P1.3  cx=720
+//     P1.4  cx=940
+//
+//   ERROR NODE (y=430):
+//     P1.E  cx=500
+//
+//   DATA STORE (y=560):
+//     DS-1  x=660  y=545  w=300 h=36
+//
+// ROUTING CORRIDORS:
+//   Top (above processes):   y=140  (return preview flow)
+//   Left (error return):     x=160
+//   Right side:              x=1060
+// ══════════════════════════════════════════════════════════════════
+function buildL1(container){
+  const W=1200,H=700;
+  const svg=mkSVG(container,W,H);
+  hdr(svg,W,'P1 DECOMPOSITION — BATCH INGESTION & VALIDATION');
+
+  const An=entity(svg,20,145,145,65,['Analyst'],'Batch submitter');
+
+  const p11=subProc(svg,280,255,70,38,'P1.1',['Accept','Upload'],C.p1);
+  const p12=subProc(svg,500,255,70,38,'P1.2',['Parse &','Validate'],C.p1);
+  const p13=subProc(svg,720,255,70,38,'P1.3',['Preview','Records'],C.p1);
+  const p14=subProc(svg,940,255,70,38,'P1.4',['Assign','Label & Tag'],C.p1);
+  const pE= subProc(svg,500,430,70,36,'P1.E',['Flag &','Report Errors'],C.red);
+  const ds1=store(svg,650,550,310,36,'DS-1','raw_batch_staging');
+
+  // ── Analyst → P1.1: straight right
+  flow(svg,[[165,177],[210,177],[210,255]],'CSV / pasted text',C.p1);
+
+  // ── P1.1 → P1.2
+  flow(svg,[[350,255],[430,255]],'raw records',C.flow);
+
+  // ── P1.2 → P1.3
+  flow(svg,[[570,255],[650,255]],'validated rows',C.flow);
+
+  // ── P1.3 → P1.4
+  flow(svg,[[790,255],[870,255]],'confirmed batch',C.flow);
+
+  // ── P1.3 → Analyst PREVIEW: goes UP to y=115 corridor, returns LEFT
+  flow(svg,[
+    [720,217],
+    [720,115],
+    [165,115],
+    [165,177]
+  ],'5-row preview + count',C.p1,true);
+
+  // ── P1.2 → P1.E (error): straight DOWN
+  flow(svg,[[500,293],[500,394]],'malformed rows',C.red,true);
+
+  // ── P1.E → Analyst (error report): goes LEFT along y=430, then UP
+  flow(svg,[
+    [430,430],
+    [160,430],
+    [160,210]
+  ],'validation error report',C.red,true);
+
+  // ── Analyst → P1.4 (label input): runs ABOVE processes at y=100
+  flow(svg,[
+    [165,145],
+    [165,100],
+    [940,100],
+    [940,217]
+  ],'source label + domain tag',C.muted,true);
+
+  // ── P1.4 → DS-1: straight DOWN
+  flow(svg,[
+    [940,293],
+    [940,500],
+    [960,500],
+    [960,550]
+  ],'staged batch + metadata',C.ext);
+
+  // ── DS-1 note
+  const dn=N('text',{x:805,y:620,'text-anchor':'middle',
+    fill:'#1e2a4a',style:'font-size:8px;font-family:DM Mono,monospace;'});
+  dn.textContent='Batch waits in DS-1 until P2 pipeline is triggered';svg.appendChild(dn);
+
+  note(svg,20,648,'P1.1','Accept: validate file type CSV/TXT, encoding UTF-8, max 10 000 rows');
+  note(svg,20,664,'P1.2','Parse: check required columns, flag nulls, count valid vs rejected rows');
+  note(svg,20,680,'P1.3','Preview: return 5-row sample + totals — analyst confirms before pipeline runs');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// L2 — NLP PIPELINE EXECUTION
+//
+// Grid (1200×740):
+//
+//   LEFT COL (OpenAI entity): x=20, y=220  (150×240)
+//                              one tall box serving all API calls
+//
+//   DS-1 (source):  x=200 y=130 w=260 h=36
+//
+//   ROW B — per-record sentiment (y=280):
+//     P2.1  cx=360  (Build Prompts)
+//     P2.2  cx=560  (Call API Sentiment)
+//     P2.3  cx=760  (Parse & Score)
+//
+//   ROW C — batch-level calls (y=450):
+//     P2.4  cx=360  (Theme Extraction)
+//     P2.5  cx=560  (Executive Summary)
+//     P2.6  cx=760  (Anomaly Detection)
+//
+//   P2.7 ASSEMBLER (y=365):  cx=1000
+//
+//   DS-2 (sink): x=200 y=620 w=260 h=36
+//
+// All API calls exit LEFT from their process → OpenAI left edge.
+// Responses return RIGHT → back into process.
+// Convergence into P2.7 via explicit right-side corridors.
+// ══════════════════════════════════════════════════════════════════
+function buildL2(container){
+  const W=1200,H=740;
+  const svg=mkSVG(container,W,H);
+  hdr(svg,W,'P2 DECOMPOSITION — NLP PIPELINE EXECUTION','#0a1018');
+
+  // OpenAI: single entity, left column, tall
+  const OA=entity(svg,18,215,148,250,['OpenAI','API'],'External NLP');
+
+  // Data stores
+  const ds1=store(svg,200,130,260,36,'DS-1','raw_batch_staging');
+  const ds2=store(svg,200,630,260,36,'DS-2','analysis_results');
+
+  // Row B
+  const p21=subProc(svg,370,280,70,38,'P2.1',['Build','Prompts'],C.p2);
+  const p22=subProc(svg,570,280,70,38,'P2.2',['Call API','Sentiment'],C.p2);
+  const p23=subProc(svg,770,280,70,38,'P2.3',['Parse &','Score'],C.p2);
+
+  // Row C
+  const p24=subProc(svg,370,450,70,38,'P2.4',['Theme','Extraction'],C.p2);
+  const p25=subProc(svg,570,450,70,38,'P2.5',['Executive','Summary'],C.p2);
+  const p26=subProc(svg,770,450,70,38,'P2.6',['Anomaly','Detection'],C.amber);
+
+  // Assembler
+  const p27=subProc(svg,1000,365,72,42,'P2.7',['Assemble','Result'],C.p1);
+
+  // ── DS-1 → P2.1 (staged records into Row B)
+  flow(svg,[[330,148],[330,242]],'staged records',C.ext,true);
+
+  // ── DS-1 → P2.4 (batch records into Row C)
+  flow(svg,[[270,166],[230,166],[230,412]],'staged batch',C.ext,true);
+
+  // ── Row B: P2.1 → P2.2 → P2.3
+  flow(svg,[[440,280],[500,280]],'prompt array',C.flow);
+  flow(svg,[[640,280],[700,280]],'raw responses',C.flow);
+
+  // ── P2.1 → OpenAI (Row B exit LEFT at y=265)
+  flow(svg,[[300,265],[166,265]],'prompts ×N',C.p2);
+  // ── OpenAI → P2.1 response (y=295)
+  flow(svg,[[166,295],[300,295]],'scored responses',C.p2,true);
+
+  // ── P2.2 → OpenAI (exit LEFT at y=268, offset)
+  flow(svg,[[500,268],[390,268],[390,310],[166,310]],'record batch',C.p2);
+  // ── OpenAI → P2.2 response
+  flow(svg,[[166,330],[390,330],[390,292],[500,292]],'JSON responses',C.p2,true);
+
+  // ── Row C: P2.4 → P2.5
+  flow(svg,[[440,450],[500,450]],'theme context',C.flow);
+
+  // ── P2.4 → OpenAI (exit LEFT at y=435)
+  flow(svg,[[300,435],[166,435]],'theme prompt',C.p2);
+  // ── OpenAI → P2.4 response
+  flow(svg,[[166,455],[300,455]],'themes + freq',C.p2,true);
+
+  // ── P2.5 → OpenAI (exit LEFT at y=438, offset)
+  flow(svg,[[500,438],[440,438],[440,470],[166,470]],'summary prompt',C.p2);
+  // ── OpenAI → P2.5 response
+  flow(svg,[[166,490],[440,490],[440,462],[500,462]],'narrative text',C.p2,true);
+
+  // ── P2.3 → P2.6 (scores flow DOWN for anomaly check)
+  // Route: exit bottom of P2.3, go to y=390, go left to x=880, go down to P2.6 top
+  flow(svg,[
+    [770,318],
+    [770,390],
+    [870,390],
+    [870,412]
+  ],'scores array',C.amber,true);
+
+  // ── Convergence into P2.7 (RIGHT side corridors, no crossing):
+  // P2.3 → P2.7: exit RIGHT, straight across y=280
+  flow(svg,[[840,280],[928,280],[928,345]],'scored records[]',C.flow);
+
+  // P2.4 theme list → P2.7: exit bottom of P2.4, go to y=540, right to x=970, up into P2.7
+  flow(svg,[
+    [370,488],
+    [370,540],
+    [970,540],
+    [970,407]
+  ],'theme list',C.flow);
+
+  // P2.5 summary → P2.7: exit right of P2.5, corridor y=420
+  flow(svg,[
+    [640,450],
+    [900,450],
+    [900,385],
+    [928,385]
+  ],'exec summary',C.flow);
+
+  // P2.6 anomaly flags → P2.7: exit right, straight across y=450
+  flow(svg,[[840,450],[928,395]],'anomaly flags[]',C.amber);
+
+  // ── P2.7 → DS-2: go down right side
+  flow(svg,[
+    [1000,407],
+    [1000,580],
+    [800,580],
+    [800,630]
+  ],'full analysis JSON',C.p1);
+
+  note(svg,20,668,'P2.1','Per-record prompt: returns {sentiment, confidence, reasoning} for each input row');
+  note(svg,20,684,'P2.3','Structured parse: extracts JSON from API response, retries on malformed output');
+  note(svg,20,700,'P2.6','Anomaly detection: ±2σ on score distribution; time-spike if timestamps present');
+  note(svg,20,716,'P2.7','Assembles scored records + themes + summary + anomaly flags → unified result object');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// L3 — RESULTS VISUALISATION & STORAGE
+//
+// Grid (1200×700):
+//
+//   ENTITIES:
+//     Analyst: x=20  y=130  (145×65)
+//     Admin:   x=20  y=370  (145×60)
+//
+//   RENDER ROW (y=270, rx=72 ry=40):
+//     P3.1 Sentiment   cx=340
+//     P3.2 Themes      cx=530
+//     P3.3 Timeline    cx=720
+//     P3.4 Export CSV  cx=910
+//
+//   STORAGE ROW (y=450):
+//     P3.5 Write History  cx=530
+//     P3.6 Browse History cx=340
+//
+//   DATA STORES:
+//     DS-2 (source): x=350 y=570 w=280 h=36
+//     DS-3 (export): x=760 y=570 w=240 h=36
+//
+// CORRIDORS:
+//   Top (Analyst trigger):  y=85
+//   Bottom (below system):  y=640
+// ══════════════════════════════════════════════════════════════════
+function buildL3(container){
+  const W=1200,H=700;
+  const svg=mkSVG(container,W,H);
+  hdr(svg,W,'P3 DECOMPOSITION — RESULTS VISUALISATION & STORAGE','#0a1018');
+
+  const An=entity(svg,20,130,145,65,['Analyst'],'Dashboard user');
+  const Ad=entity(svg,20,370,145,60,['Admin'],'History viewer');
+
+  // Render row
+  const p31=subProc(svg,320,270,70,40,'P3.1',['Sentiment','Panel'],C.p3);
+  const p32=subProc(svg,510,270,70,40,'P3.2',['Theme','Heatmap'],C.p3);
+  const p33=subProc(svg,700,270,70,40,'P3.3',['Timeline','& Flags'],C.p3);
+  const p34=subProc(svg,890,270,70,40,'P3.4',['Generate','Export CSV'],C.p3);
+
+  // Storage row
+  const p35=subProc(svg,510,450,70,38,'P3.5',['Write to','History'],C.ext);
+  const p36=subProc(svg,320,450,70,38,'P3.6',['Browse','History'],C.ext);
+
+  // Data stores
+  const ds2=store(svg,330,568,300,36,'DS-2','analysis_results');
+  const ds3=store(svg,740,568,240,36,'DS-3','export_files (tmp)');
+
+  // ── DS-2 FEEDS RENDER ROW (four separate vertical flows, each on its own x)
+  // P3.1 ← DS-2: x=340
+  flow(svg,[[380,568],[380,500],[380,310]],'result data',C.ext,true);
+  // P3.2 ← DS-2: x=510
+  flow(svg,[[490,568],[490,310]],'result data',C.ext,true);
+  // P3.3 ← DS-2: x=700
+  flow(svg,[[560,568],[560,520],[560,310]],'result data',C.ext,true);
+  // P3.4 ← DS-2: route right of DS-2 store
+  flow(svg,[[630,586],[700,586],[700,560],[800,560],[800,310]],'result data',C.ext,true);
+
+  // ── P3.5 WRITES TO DS-2
+  flow(svg,[[510,488],[510,532],[540,532],[540,568]],'analysis JSON (write)',C.p1);
+
+  // ── DS-2 → P3.6 (browse reads)
+  flow(svg,[[370,568],[370,530],[320,530],[320,488]],'paginated records',C.ext,true);
+
+  // ── ANALYST TRIGGERS (all routed along y=85 top corridor)
+  // Analyst → P3.1 trigger: up to y=85, across, down
+  flow(svg,[[165,162],[165,85],[320,85],[320,230]],'trigger view',C.p3);
+  // P3.1 → Analyst return: down to y=200, left back
+  flow(svg,[[250,270],[200,270],[200,195],[165,195]],'chart data',C.p3,true);
+
+  // Analyst → P3.4 export request: along y=85 corridor  
+  flow(svg,[[165,148],[165,85],[890,85],[890,230]],'export request',C.muted,true);
+
+  // ── P3.4 → DS-3: straight down
+  flow(svg,[[890,310],[890,500],[940,500],[940,568]],'CSV file',C.p3);
+
+  // ── DS-3 → Analyst (file download): go right, up, back left — outer corridor x=1060
+  flow(svg,[
+    [980,586],
+    [1060,586],
+    [1060,100],
+    [165,100],
+    [165,195]
+  ],'file download',C.p3,true);
+
+  // ── ADMIN → P3.6: straight right
+  flow(svg,[[165,400],[250,400],[250,450]],'browse request',C.muted);
+  // P3.6 → Admin return:
+  flow(svg,[[250,460],[200,460],[200,430],[165,430]],'history list',C.muted,true);
+
+  note(svg,20,634,'P3.1','Sentiment panel: donut chart (pos/neu/neg %) + per-record histogram');
+  note(svg,20,650,'P3.2','Theme heatmap: theme × sentiment grid, hover reveals representative quotes');
+  note(svg,20,666,'P3.3','Timeline: trend by day/week (only if timestamps present), anomalies highlighted');
+  note(svg,20,682,'P3.5','Writes full result to PostgreSQL — assigned unique analysis_id and run_sequence');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// META + NAV
+// ══════════════════════════════════════════════════════════════════
+const META={
+  l0:{id:'DFD-L0',title:'L0 Context Diagram — Lens System Overview',lvl:'CONTEXT',cls:'hlvl-l0',
+      sub:'System boundary · external entities · primary data flows'},
+  l1:{id:'DFD-L1',title:'L1 — Batch Ingestion & Validation',lvl:'PROCESS',cls:'hlvl-l1',
+      sub:'P1.1–P1.4 · file parsing · row validation · preview · confirm · stage'},
+  l2:{id:'DFD-L2',title:'L1 — NLP Pipeline Execution',lvl:'PROCESS',cls:'hlvl-l1',
+      sub:'P2.1–P2.7 · prompt build · API calls · parse · anomaly detect · assemble'},
+  l3:{id:'DFD-L3',title:'L1 — Results Visualisation & Storage',lvl:'PROCESS',cls:'hlvl-l1',
+      sub:'P3.1–P3.6 · dashboard render · history write · browse · export CSV'},
+};
+
+const viewState={};
+let cur='l0';
+const vc=document.getElementById('vc');
+const built={};
+
+function getV(id){if(!viewState[id])viewState[id]={s:1,tx:20,ty:20};return viewState[id];}
+function applyT(id){
+  const el=document.querySelector('#c-'+id+' svg');
+  if(!el)return;
+  const v=getV(id);
+  el.style.transform=`translate(${v.tx}px,${v.ty}px) scale(${v.s})`;
+}
+function zoomFit(){
+  if(!cur)return;
+  const el=document.querySelector('#c-'+cur+' svg');if(!el)return;
+  const vw=vc.clientWidth,vh=vc.clientHeight;
+  const sw=+el.getAttribute('width')||1200,sh=+el.getAttribute('height')||700;
+  const v=getV(cur);
+  v.s=Math.min((vw-40)/sw,(vh-40)/sh,1.4);
+  v.tx=20;v.ty=20;applyT(cur);
+}
+function zoomBy(f){
+  if(!cur)return;
+  const v=getV(cur);
+  const cx=vc.clientWidth/2,cy=vc.clientHeight/2;
+  v.tx=cx-(cx-v.tx)*f;v.ty=cy-(cy-v.ty)*f;v.s*=f;applyT(cur);
+}
+
+let drag=false,lx=0,ly=0;
+vc.addEventListener('mousedown',e=>{drag=true;lx=e.clientX;ly=e.clientY;vc.classList.add('drag');});
+window.addEventListener('mouseup',()=>{drag=false;vc.classList.remove('drag');});
+window.addEventListener('mousemove',e=>{
+  if(!drag||!cur)return;
+  const v=getV(cur);v.tx+=e.clientX-lx;v.ty+=e.clientY-ly;lx=e.clientX;ly=e.clientY;applyT(cur);
+});
+vc.addEventListener('wheel',e=>{
+  e.preventDefault();if(!cur)return;
+  const f=e.deltaY<0?1.1:0.9;
+  const r=vc.getBoundingClientRect();
+  const mx=e.clientX-r.left,my=e.clientY-r.top;
+  const v=getV(cur);v.tx=mx-(mx-v.tx)*f;v.ty=my-(my-v.ty)*f;v.s*=f;applyT(cur);
+},{passive:false});
+
+function show(id,el){
+  document.querySelectorAll('.dc').forEach(d=>d.classList.remove('vis'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  document.getElementById('c-'+id).classList.add('vis');
+  el.classList.add('active');
+  cur=id;
+  const m=META[id];
+  document.getElementById('hid').textContent=m.id;
+  document.getElementById('htitle').textContent=m.title;
+  const lv=document.getElementById('hlvl');
+  lv.textContent=m.lvl;lv.className='hlvl '+m.cls;
+  document.getElementById('hreqs').textContent=m.sub;
+  if(!built[id]){
+    const c=document.getElementById('c-'+id);
+    if(id==='l0')buildL0(c);
+    else if(id==='l1')buildL1(c);
+    else if(id==='l2')buildL2(c);
+    else if(id==='l3')buildL3(c);
+    built[id]=true;
+    setTimeout(zoomFit,40);
+  }else applyT(id);
+}
+
+window.addEventListener('load',()=>{
+  buildL0(document.getElementById('c-l0'));
+  built['l0']=true;cur='l0';
+  setTimeout(zoomFit,60);
+});
+</script>
+</body>
+</html>
