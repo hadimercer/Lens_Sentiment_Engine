@@ -112,15 +112,18 @@ def run_pipeline(
     progress("Extracting themes", 1, 1)
 
     progress("Generating summary", 0, 1)
-    executive_summary = client.generate_summary(
+    summary_payload = client.generate_summary(
         build_summary_prompt(
             sentiment_split=sentiment_split,
-            top_themes=[theme.label for theme in themes[:3]],
+            top_themes=[theme.label for theme in themes[:5]],
             context=batch.context,
             prior_cycle=batch.prior_cycle,
             batch_label=batch.batch_label,
         )
     )
+    executive_summary = summary_payload["executive_summary"]
+    key_takeaways = summary_payload["key_takeaways"]
+    priority_actions = summary_payload["priority_actions"]
     progress("Generating summary", 1, 1)
 
     progress("Running anomaly detection", 0, 1)
@@ -141,6 +144,8 @@ def run_pipeline(
         records=record_results,
         themes=themes,
         executive_summary=executive_summary,
+        key_takeaways=key_takeaways,
+        priority_actions=priority_actions,
         anomaly_flags=anomaly_flags,
         sentiment_split=sentiment_split,
         anomaly_count=len(anomaly_flags),

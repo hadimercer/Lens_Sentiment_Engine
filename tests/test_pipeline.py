@@ -74,7 +74,11 @@ class PipelineTests(unittest.TestCase):
                 ]
 
             def generate_summary(self, prompt: str):
-                return "Positive summary"
+                return {
+                    "executive_summary": "Positive summary",
+                    "key_takeaways": ["Support quality was the strongest signal."],
+                    "priority_actions": ["Keep the support playbook consistent."],
+                }
 
         batch = BatchInput(
             batch_label="Demo batch",
@@ -91,6 +95,7 @@ class PipelineTests(unittest.TestCase):
 
         self.assertEqual(captured["model"], "gpt-4o-mini")
         self.assertEqual(result.record_count, 1)
+        self.assertEqual(result.key_takeaways, ["Support quality was the strongest signal."])
 
     def test_run_pipeline_builds_analysis_result(self):
         provider = FakeProvider([
@@ -108,7 +113,19 @@ class PipelineTests(unittest.TestCase):
                     ]
                 }
             ),
-            json.dumps({"executive_summary": "Mixed sentiment with support as the main theme."}),
+            json.dumps(
+                {
+                    "executive_summary": "Mixed sentiment with support as the main theme.",
+                    "key_takeaways": [
+                        "Support quality remains the dominant topic.",
+                        "The batch contains both praise and friction.",
+                    ],
+                    "priority_actions": [
+                        "Audit slower support handoffs.",
+                        "Preserve quick-response practices.",
+                    ],
+                }
+            ),
         ])
         batch = BatchInput(
             batch_label="Demo batch",
@@ -133,6 +150,8 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(result.prior_cycle_ref, "prior-id")
         self.assertEqual(result.themes[0].label, "support quality")
         self.assertTrue(result.executive_summary.startswith("Mixed sentiment"))
+        self.assertEqual(result.key_takeaways[0], "Support quality remains the dominant topic.")
+        self.assertEqual(result.priority_actions[0], "Audit slower support handoffs.")
 
 
 if __name__ == "__main__":

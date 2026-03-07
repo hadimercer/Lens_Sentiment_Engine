@@ -1,16 +1,16 @@
--- =============================================================================
--- Lens — PostgreSQL Schema
+﻿-- =============================================================================
+-- Lens â€” PostgreSQL Schema
 -- Document: schema.sql  |  Version: 0.1  |  Portfolio: S4 BA Portfolio 2026
 -- Author: Hadi Mercer
 --
 -- 5 tables matching the ERD (Lens_ERD_001):
---   1. series_index          — named series registry
---   2. analysis_results      — core result store (central fact table)
---   3. batch_records         — normalised per-record rows
---   4. context_profiles      — separated context data (1:1 with analysis_results)
---   5. pipeline_run_log      — audit trail, permanent retention
+--   1. series_index          â€” named series registry
+--   2. analysis_results      â€” core result store (central fact table)
+--   3. batch_records         â€” normalised per-record rows
+--   4. context_profiles      â€” separated context data (1:1 with analysis_results)
+--   5. pipeline_run_log      â€” audit trail, permanent retention
 --
--- Deployment target: Supabase (PostgreSQL 15) — free tier
+-- Deployment target: Supabase (PostgreSQL 15) â€” free tier
 -- Run order: this file top-to-bottom, then seed.sql for demo data
 -- =============================================================================
 
@@ -18,7 +18,7 @@
 -- =============================================================================
 -- EXTENSION
 -- gen_random_uuid() requires pgcrypto on older Postgres versions.
--- Supabase ships with uuid-ossp enabled by default — both work.
+-- Supabase ships with uuid-ossp enabled by default â€” both work.
 -- =============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -30,7 +30,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- Lightweight registry of named analysis series.
 -- Created or updated each time a run is assigned to a series.
 -- Enables autocomplete (FR-03.01) and series browser (FR-03.06).
--- series_name is UNIQUE — the natural key analysts type and reuse.
+-- series_name is UNIQUE â€” the natural key analysts type and reuse.
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS series_index (
@@ -58,9 +58,9 @@ COMMENT ON COLUMN series_index.last_run_at  IS 'Timestamp of the most recent com
 --
 -- Central fact table. One row per completed pipeline run.
 -- All other tables reference this via analysis_id (FK).
--- JSONB fields carry structured output — see design notes in FRD Section 6.
+-- JSONB fields carry structured output â€” see design notes in FRD Section 6.
 --
--- prior_cycle_ref is a self-referential FK — points to the previous run
+-- prior_cycle_ref is a self-referential FK â€” points to the previous run
 -- in the same series. NULL for series run 1 and all standalone runs.
 -- =============================================================================
 
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS analysis_results (
     record_count        INTEGER       NOT NULL,
     created_at          TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
 
-    -- NLP outputs (JSONB — structure varies per run)
+    -- NLP outputs (JSONB â€” structure varies per run)
     sentiment_split     JSONB         NOT NULL,
     -- {"positive": 42.1, "neutral": 38.0, "negative": 19.9}
 
@@ -86,10 +86,13 @@ CREATE TABLE IF NOT EXISTS analysis_results (
     --   "representative_quotes": ["...", "..."]}]
 
     executive_summary   TEXT,
+    summary_details     JSONB         NOT NULL DEFAULT '{}'::JSONB,
+    -- {"key_takeaways": ["..."], "priority_actions": ["..."]}
+
     anomaly_count       INTEGER       NOT NULL DEFAULT 0,
 
     context_profile     JSONB,
-    -- Snapshot at run time. Nullable — not all runs have context.
+    -- Snapshot at run time. Nullable â€” not all runs have context.
     -- {"org_name": "...", "industry": "...", "department": "...",
     --  "reporting_period": "...", "situational_notes": "..."}
 
@@ -120,8 +123,9 @@ COMMENT ON COLUMN analysis_results.series_name    IS 'FK to series_index. NULL f
 COMMENT ON COLUMN analysis_results.run_sequence   IS 'Run number within its series (1-indexed). NULL for standalone runs.';
 COMMENT ON COLUMN analysis_results.sentiment_split IS 'JSONB: {"positive": %, "neutral": %, "negative": %}. Always populated.';
 COMMENT ON COLUMN analysis_results.top_themes     IS 'JSONB array of theme objects from P2.4. 5-8 items per run.';
+COMMENT ON COLUMN analysis_results.summary_details IS 'JSONB summary support structure. Stores ordered takeaways and priority actions.';
 COMMENT ON COLUMN analysis_results.context_profile IS 'JSONB snapshot of context at run time. Nullable.';
-COMMENT ON COLUMN analysis_results.per_record_results IS 'JSONB full scored array. Denormalised copy — batch_records holds the queryable rows.';
+COMMENT ON COLUMN analysis_results.per_record_results IS 'JSONB full scored array. Denormalised copy â€” batch_records holds the queryable rows.';
 COMMENT ON COLUMN analysis_results.prior_cycle_ref IS 'Self-referential FK. Points to prior run in same series for longitudinal injection.';
 
 
@@ -131,7 +135,7 @@ COMMENT ON COLUMN analysis_results.prior_cycle_ref IS 'Self-referential FK. Poin
 -- Normalised per-record detail table.
 -- Populated from per_record_results JSONB at write time.
 -- Exists to support: CSV export (FR-04.03), history query, theme assignment query.
--- text_body is retained only to support export — not a permanent archive intent.
+-- text_body is retained only to support export â€” not a permanent archive intent.
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS batch_records (
@@ -141,8 +145,8 @@ CREATE TABLE IF NOT EXISTS batch_records (
     sequence_number       INTEGER       NOT NULL,   -- position within the batch (1-indexed)
     text_body             TEXT          NOT NULL,
     sentiment_label       TEXT          NOT NULL,   -- positive | neutral | negative
-    confidence_score      NUMERIC(4,3)  NOT NULL,   -- 0.000–1.000
-    deviation_from_mean   NUMERIC,                  -- signed σ value; NULL if not scored
+    confidence_score      NUMERIC(4,3)  NOT NULL,   -- 0.000â€“1.000
+    deviation_from_mean   NUMERIC,                  -- signed Ïƒ value; NULL if not scored
     is_anomaly            BOOLEAN       NOT NULL DEFAULT FALSE,
     theme_assignments     JSONB,                    -- ["theme label 1", "theme label 2"]
     record_timestamp      TIMESTAMPTZ,              -- from source if present (enables time panel)
@@ -155,11 +159,11 @@ CREATE TABLE IF NOT EXISTS batch_records (
 );
 
 COMMENT ON TABLE  batch_records                    IS 'Normalised per-record rows. One row per text record per analysis run.';
-COMMENT ON COLUMN batch_records.analysis_id        IS 'FK to analysis_results. CASCADE delete — records deleted with their parent run.';
+COMMENT ON COLUMN batch_records.analysis_id        IS 'FK to analysis_results. CASCADE delete â€” records deleted with their parent run.';
 COMMENT ON COLUMN batch_records.sequence_number    IS 'Original position in uploaded batch (1-indexed).';
-COMMENT ON COLUMN batch_records.confidence_score   IS 'OpenAI confidence score 0.000–1.000.';
-COMMENT ON COLUMN batch_records.deviation_from_mean IS 'Signed σ deviation from batch mean score. NULL for unscored records.';
-COMMENT ON COLUMN batch_records.is_anomaly         IS 'TRUE when |deviation_from_mean| >= 2σ or flagged as time-series spike.';
+COMMENT ON COLUMN batch_records.confidence_score   IS 'OpenAI confidence score 0.000â€“1.000.';
+COMMENT ON COLUMN batch_records.deviation_from_mean IS 'Signed Ïƒ deviation from batch mean score. NULL for unscored records.';
+COMMENT ON COLUMN batch_records.is_anomaly         IS 'TRUE when |deviation_from_mean| >= 2Ïƒ or flagged as time-series spike.';
 COMMENT ON COLUMN batch_records.theme_assignments  IS 'JSONB array of theme labels assigned to this record.';
 COMMENT ON COLUMN batch_records.record_timestamp   IS 'Parsed from optional timestamp column in source CSV.';
 COMMENT ON COLUMN batch_records.scored             IS 'FALSE if all API retries failed. Record retained with placeholder values.';
@@ -168,7 +172,7 @@ COMMENT ON COLUMN batch_records.scored             IS 'FALSE if all API retries 
 -- =============================================================================
 -- 4. CONTEXT_PROFILES
 --
--- Separated context data — 1:1 with analysis_results.
+-- Separated context data â€” 1:1 with analysis_results.
 -- Kept separate to keep the main table clean and because not all runs have context.
 -- Nullable fields: all context input is optional (FR-02.01).
 -- =============================================================================
@@ -191,7 +195,7 @@ CREATE TABLE IF NOT EXISTS context_profiles (
 );
 
 COMMENT ON TABLE  context_profiles                  IS 'Optional analyst context per run. 1:1 with analysis_results. All fields nullable.';
-COMMENT ON COLUMN context_profiles.analysis_id      IS 'UNIQUE FK — enforces 1:1 relationship with analysis_results.';
+COMMENT ON COLUMN context_profiles.analysis_id      IS 'UNIQUE FK â€” enforces 1:1 relationship with analysis_results.';
 COMMENT ON COLUMN context_profiles.situational_notes IS 'Free text, max 500 chars (enforced at DB and app layer).';
 
 
@@ -199,7 +203,7 @@ COMMENT ON COLUMN context_profiles.situational_notes IS 'Free text, max 500 char
 -- 5. PIPELINE_RUN_LOG
 --
 -- Audit trail for every pipeline execution attempt.
--- Retained permanently — supports debugging and portfolio demo of run history.
+-- Retained permanently â€” supports debugging and portfolio demo of run history.
 -- Includes PARTIAL and FAILED runs, not only SUCCESS.
 -- =============================================================================
 
@@ -207,7 +211,7 @@ CREATE TABLE IF NOT EXISTS pipeline_run_log (
     log_id              UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
     analysis_id         UUID    REFERENCES analysis_results (analysis_id)
                                   ON DELETE SET NULL,
-    -- SET NULL (not CASCADE) — retain log even if result is deleted
+    -- SET NULL (not CASCADE) â€” retain log even if result is deleted
     triggered_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     status              TEXT    NOT NULL,           -- SUCCESS | PARTIAL | FAILED
     records_submitted   INTEGER NOT NULL DEFAULT 0,
@@ -224,7 +228,7 @@ CREATE TABLE IF NOT EXISTS pipeline_run_log (
 );
 
 COMMENT ON TABLE  pipeline_run_log              IS 'Permanent audit log for every pipeline execution. Retained even if analysis_results row is deleted.';
-COMMENT ON COLUMN pipeline_run_log.analysis_id  IS 'FK SET NULL on delete — log survives if result is deleted.';
+COMMENT ON COLUMN pipeline_run_log.analysis_id  IS 'FK SET NULL on delete â€” log survives if result is deleted.';
 COMMENT ON COLUMN pipeline_run_log.status       IS 'SUCCESS = all records scored. PARTIAL = some failed. FAILED = pipeline aborted.';
 COMMENT ON COLUMN pipeline_run_log.error_detail IS 'Exception message or stage name on PARTIAL/FAILED runs.';
 
@@ -379,7 +383,7 @@ COMMENT ON FUNCTION get_next_run_sequence IS
 
 
 -- =============================================================================
--- ROW LEVEL SECURITY (RLS) — PLACEHOLDER
+-- ROW LEVEL SECURITY (RLS) â€” PLACEHOLDER
 --
 -- RLS is NOT enabled in v1 (single-session Streamlit deployment, no auth).
 -- These stubs document the Phase 2 intent: per-analyst row isolation.
@@ -398,6 +402,7 @@ COMMENT ON FUNCTION get_next_run_sequence IS
 
 -- =============================================================================
 -- SCHEMA COMPLETE
--- Next step: seed.sql — 3 pre-loaded series (CX / HR / Ops) with 2-3 runs each.
+-- Next step: seed.sql â€” 3 pre-loaded series (CX / HR / Ops) with 2-3 runs each.
 -- This satisfies FR-04.05: demo dataset visible on first Streamlit Cloud deploy.
 -- =============================================================================
+

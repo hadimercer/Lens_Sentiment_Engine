@@ -7,6 +7,7 @@ from typing import Optional
 from .models import ContextProfile, PriorCycleContext
 
 
+
 def build_system_prompt(
     context: Optional[ContextProfile] = None,
     prior_cycle: Optional[PriorCycleContext] = None,
@@ -44,6 +45,7 @@ def build_system_prompt(
     return "\n\n".join(sections)
 
 
+
 def build_sentiment_prompt(text: str) -> str:
     return (
         "Analyse the sentiment of the following business text.\n\n"
@@ -53,6 +55,7 @@ def build_sentiment_prompt(text: str) -> str:
         '"confidence_score": 0.0, '
         '"reasoning": "One sentence."}'
     )
+
 
 
 def build_theme_prompt(records: list[str], context: Optional[ContextProfile] = None) -> str:
@@ -80,6 +83,7 @@ def build_theme_prompt(records: list[str], context: Optional[ContextProfile] = N
     )
 
 
+
 def build_summary_prompt(
     sentiment_split: dict,
     top_themes: list[str],
@@ -90,7 +94,7 @@ def build_summary_prompt(
     pos = sentiment_split.get("positive", 0)
     neu = sentiment_split.get("neutral", 0)
     neg = sentiment_split.get("negative", 0)
-    themes_str = ", ".join(top_themes[:3])
+    themes_str = ", ".join(top_themes[:5]) or "No dominant themes identified"
 
     context_block = ""
     if context and not context.is_empty():
@@ -104,12 +108,17 @@ def build_summary_prompt(
         )
 
     return (
-        "Write a 2-3 sentence executive summary for a business text analysis.\n"
+        "Write an executive summary for a business text analysis.\n"
         f"{context_block}"
         f"Batch label: {batch_label or 'Unnamed batch'}\n"
         f"Sentiment split: {pos:.0f}% positive, {neu:.0f}% neutral, {neg:.0f}% negative\n"
         f"Top themes: {themes_str}\n"
         f"{longitudinal_instruction}\n\n"
-        "The summary should be plain language, suitable as a dashboard header. Reference the organisation and context where available.\n\n"
-        'Respond with JSON matching exactly this schema:\n{"executive_summary": "Your 2-3 sentence summary here."}'
+        "Return JSON with an executive paragraph plus ordered bullet lists. "
+        "The bullet lists must include all materially distinct takeaways and all materially important actions needed to understand and act on the batch. "
+        "Do not pad the lists with filler or repeated points. Keep items concise, specific, and ordered by importance.\n\n"
+        "Respond with JSON matching exactly this schema:\n"
+        '{"executive_summary": "Short executive paragraph.", '
+        '"key_takeaways": ["Most important takeaway", "Next takeaway"], '
+        '"priority_actions": ["Highest priority action", "Next action"]}'
     )

@@ -192,7 +192,7 @@ def apply_theme() -> None:
       .ops-kpi-card .value {{ margin-top: 0.45rem; color: {TOKENS['text']}; font-size: 1.85rem; line-height: 1; font-weight: 700; }}
       .ops-kpi-card .meta {{ margin-top: 0.6rem; color: {TOKENS['text_muted']}; font-size: 0.84rem; line-height: 1.45; min-height: 3.65rem; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }}
       .ops-kpi-card .signal {{ margin-top: auto; height: 4px; border-radius: 999px; background: linear-gradient(90deg, rgba(54,194,180,0.12), rgba(54,194,180,0.72)); }}
-      .ops-note, .ops-sop, .ops-status {{
+      .ops-note, .ops-sop, .ops-status, .ops-summary-card, .ops-summary-paragraph {{
         border: 1px solid {TOKENS['border']};
         border-radius: {TOKENS['radius_l']};
         background: linear-gradient(180deg, rgba(17,34,44,0.96), rgba(9,19,26,0.98));
@@ -200,8 +200,11 @@ def apply_theme() -> None:
         box-shadow: {TOKENS['shadow']};
         margin-bottom: 1rem;
       }}
-      .ops-note h3, .ops-sop h3 {{ margin: 0 0 0.45rem 0; color: {TOKENS['text']}; font-size: 1.05rem; }}
-      .ops-note p, .ops-sop p, .ops-sop li, .ops-note div {{ color: {TOKENS['text_muted']}; line-height: 1.5; }}
+      .ops-note h3, .ops-sop h3, .ops-summary-card h3 {{ margin: 0 0 0.45rem 0; color: {TOKENS['text']}; font-size: 1.05rem; }}
+      .ops-note p, .ops-sop p, .ops-sop li, .ops-note div, .ops-summary-paragraph p, .ops-summary-card li {{ color: {TOKENS['text_muted']}; line-height: 1.5; }}
+      .ops-summary-paragraph p {{ margin: 0; font-size: 0.98rem; }}
+      .ops-summary-card ul {{ margin: 0.1rem 0 0 1rem; padding-left: 0.35rem; }}
+      .ops-summary-card li + li {{ margin-top: 0.4rem; }}
       .ops-sop ol {{ margin: 0.35rem 0 0 1rem; padding-left: 0.5rem; }}
       .ops-status strong {{ color: {TOKENS['text']}; }}
       .ops-status.demo {{ background: linear-gradient(180deg, rgba(233,166,58,0.12), rgba(17,34,44,0.98)); }}
@@ -399,3 +402,4 @@ def render_bootstrap_status(ok: bool, message: str) -> None:
 
 def render_empty_state(message: str) -> None:
     st.markdown(f'<div class="ops-empty">{html.escape(message)}</div>', unsafe_allow_html=True)
+

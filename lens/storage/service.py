@@ -19,6 +19,12 @@ from lens.pipeline.models import AnalysisResult, ContextProfile, PriorCycleConte
 from .models import HistoryFilters, HistoryListItem, StoredAnalysis, StoredRecord
 
 
+SUMMARY_DETAILS_MIGRATION = """
+ALTER TABLE analysis_results
+ADD COLUMN IF NOT EXISTS summary_details JSONB NOT NULL DEFAULT '{}'::JSONB;
+"""
+
+
 
 def bootstrap_database() -> tuple[bool, str]:
     settings = get_settings()
@@ -31,6 +37,7 @@ def bootstrap_database() -> tuple[bool, str]:
     with get_connection() as connection:
         with connection.cursor() as cursor:
             cursor.execute(schema_sql)
+            cursor.execute(SUMMARY_DETAILS_MIGRATION)
             connection.commit()
 
             cursor.execute("SELECT COUNT(*) AS total FROM series_index")
@@ -100,8 +107,8 @@ def save_analysis(result: AnalysisResult) -> StoredAnalysis:
                     INSERT INTO analysis_results (
                         analysis_id, series_name, run_sequence, batch_label, domain_tag,
                         record_count, sentiment_split, top_themes, executive_summary,
-                        anomaly_count, context_profile, per_record_results, prior_cycle_ref
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        summary_details, anomaly_count, context_profile, per_record_results, prior_cycle_ref
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         result.analysis_id,
@@ -113,6 +120,7 @@ def save_analysis(result: AnalysisResult) -> StoredAnalysis:
                         Json(db_payload["sentiment_split"]),
                         Json(db_payload["top_themes"]),
                         result.executive_summary,
+                        Json(db_payload["summary_details"]),
                         result.anomaly_count,
                         Json(db_payload["context_profile"]) if db_payload["context_profile"] else None,
                         Json(db_payload["per_record_results"]),
@@ -279,7 +287,7 @@ def load_analysis(analysis_id: str) -> StoredAnalysis:
                 """
                 SELECT analysis_id, batch_label, domain_tag, series_name, run_sequence,
                        created_at, record_count, sentiment_split, top_themes,
-                       executive_summary, anomaly_count, context_profile,
+                       executive_summary, summary_details, anomaly_count, context_profile,
                        per_record_results, prior_cycle_ref
                 FROM analysis_results
                 WHERE analysis_id = %s
@@ -337,6 +345,10 @@ def load_analysis(analysis_id: str) -> StoredAnalysis:
         for theme in analysis_row["top_themes"]
     ]
 
+    summary_details = analysis_row.get("summary_details") or {}
+    key_takeaways = list(summary_details.get("key_takeaways") or [])
+    priority_actions = list(summary_details.get("priority_actions") or [])
+
     reasoning_by_id = {
         record.get("record_id"): record.get("reasoning")
         for record in analysis_row["per_record_results"]
@@ -371,6 +383,8 @@ def load_analysis(analysis_id: str) -> StoredAnalysis:
         sentiment_split=analysis_row["sentiment_split"],
         themes=themes,
         executive_summary=analysis_row["executive_summary"],
+        key_takeaways=key_takeaways,
+        priority_actions=priority_actions,
         anomaly_flags=[],
         anomaly_count=analysis_row["anomaly_count"],
         context_profile=context_profile,

@@ -62,6 +62,8 @@ class StoredAnalysis:
     sentiment_split: dict
     themes: list[ThemeResult]
     executive_summary: str
+    key_takeaways: list[str]
+    priority_actions: list[str]
     anomaly_flags: list[AnomalyFlag]
     anomaly_count: int
     context_profile: Optional[ContextProfile]
@@ -97,6 +99,8 @@ class StoredAnalysis:
             sentiment_split=result.sentiment_split,
             themes=result.themes,
             executive_summary=result.executive_summary,
+            key_takeaways=result.key_takeaways,
+            priority_actions=result.priority_actions,
             anomaly_flags=result.anomaly_flags,
             anomaly_count=result.anomaly_count,
             context_profile=result.context_profile,

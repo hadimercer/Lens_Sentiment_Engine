@@ -96,7 +96,8 @@ class StorageTests(unittest.TestCase):
 
         self.assertTrue(ok)
         self.assertIn("initialized", message.lower())
-        self.assertEqual(len(cursor.executed), 2)
+        self.assertEqual(len(cursor.executed), 3)
+        self.assertIn("ADD COLUMN IF NOT EXISTS summary_details", cursor.executed[1][0])
 
     def test_save_analysis_assigns_run_sequence(self):
         from lens.storage import service
@@ -124,6 +125,8 @@ class StorageTests(unittest.TestCase):
             sentiment_split={"positive": 100.0, "neutral": 0.0, "negative": 0.0},
             themes=[],
             executive_summary="summary",
+            key_takeaways=["Customers praised service speed."],
+            priority_actions=["Keep the current service playbook in place."],
             anomaly_flags=[],
             anomaly_count=0,
             context_profile=None,
@@ -149,6 +152,8 @@ class StorageTests(unittest.TestCase):
                 ],
                 themes=[ThemeResult(label="service", frequency=1, dominant_sentiment="positive", representative_quotes=["Great service"])],
                 executive_summary="summary",
+                key_takeaways=["Customers praised service speed."],
+                priority_actions=["Keep the current service playbook in place."],
                 anomaly_flags=[],
                 sentiment_split={"positive": 100.0, "neutral": 0.0, "negative": 0.0},
                 anomaly_count=0,
@@ -170,6 +175,8 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(result.run_sequence, 3)
         self.assertEqual(stored.run_sequence, 3)
         self.assertTrue(connection.committed)
+        insert_statement = cursor.executed[2][0]
+        self.assertIn("summary_details", insert_statement)
 
     def test_delete_analysis_removes_selected_run(self):
         from lens.storage import service

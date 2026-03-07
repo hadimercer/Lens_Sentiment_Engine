@@ -120,6 +120,8 @@ class AnalysisResult:
     records: list[RecordResult]
     themes: list[ThemeResult]
     executive_summary: str
+    key_takeaways: list[str]
+    priority_actions: list[str]
     anomaly_flags: list[AnomalyFlag]
     sentiment_split: dict
     anomaly_count: int
@@ -151,6 +153,10 @@ class AnalysisResult:
                 for theme in self.themes
             ],
             "executive_summary": self.executive_summary,
+            "summary_details": {
+                "key_takeaways": self.key_takeaways,
+                "priority_actions": self.priority_actions,
+            },
             "anomaly_count": self.anomaly_count,
             "context_profile": {
                 "org_name": self.context_profile.org_name,

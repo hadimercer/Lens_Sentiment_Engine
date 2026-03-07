@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 SENTIMENT_MAX_TOKENS = 120
 THEME_MAX_TOKENS = 1200
-SUMMARY_MAX_TOKENS = 300
+SUMMARY_MAX_TOKENS = 900
 
 
 class APIError(Exception):
@@ -180,12 +180,44 @@ class APIClient:
             )
         return validated
 
-    def generate_summary(self, prompt: str) -> str:
+    def generate_summary(self, prompt: str) -> dict:
+        fallback = {
+            "executive_summary": "Summary unavailable - pipeline error during summary generation.",
+            "key_takeaways": [],
+            "priority_actions": [],
+        }
         result = self._call(
             user_message=prompt,
             max_tokens=SUMMARY_MAX_TOKENS,
             context_tag="exec_summary",
         )
         if result is None:
-            return "Summary unavailable - pipeline error during summary generation."
-        return str(result.get("executive_summary") or "Summary unavailable - pipeline error during summary generation.").strip()
+            return fallback
+
+        executive_summary = str(result.get("executive_summary") or fallback["executive_summary"]).strip() or fallback["executive_summary"]
+        key_takeaways = _clean_list(result.get("key_takeaways"))
+        priority_actions = _clean_list(result.get("priority_actions"))
+
+        return {
+            "executive_summary": executive_summary,
+            "key_takeaways": key_takeaways,
+            "priority_actions": priority_actions,
+        }
+
+
+
+def _clean_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        text = str(item or "").strip()
+        if not text:
+            continue
+        lowered = text.lower()
+        if lowered in seen:
+            continue
+        seen.add(lowered)
+        cleaned.append(text)
+    return cleaned
