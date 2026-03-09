@@ -105,65 +105,102 @@ def _render_summary_brief(analysis: StoredAnalysis) -> None:
 
 
 def _render_issue_cluster(cluster) -> None:
-    severity = html.escape(cluster.severity.title())
-    title = html.escape(cluster.label)
-    trend = f"<p><strong>Trend note:</strong> {html.escape(cluster.trend_note)}</p>" if cluster.trend_note else ""
+    trend_html = (
+        f"<div class='ops-summary-inline-note'><strong>Trend note:</strong> {html.escape(cluster.trend_note)}</div>"
+        if cluster.trend_note
+        else ""
+    )
+    problem_html = _list_html(cluster.problem_patterns, "No detailed problem patterns were returned.")
+    evidence_html = _list_html(cluster.evidence_quotes, "No evidence quotes were returned.")
+    action_html = _list_html(cluster.recommended_actions, "No recommended actions were returned.")
     st.markdown(
         f"""
-        <section class="ops-summary-card ops-cluster-card">
-            <h3>{title}</h3>
-            <p><strong>Severity:</strong> {severity} | <strong>Frequency:</strong> {cluster.frequency} | <strong>Sentiment:</strong> {html.escape(cluster.sentiment_direction.title())}</p>
-            {trend}
+        <section class="ops-summary-card ops-structured-card">
+            <div class="ops-structured-card__header">
+                <div>
+                    <h3>{html.escape(cluster.label)}</h3>
+                    <div class="ops-structured-card__meta">
+                        <span><strong>Severity:</strong> {html.escape(cluster.severity.title())}</span>
+                        <span><strong>Frequency:</strong> {cluster.frequency}</span>
+                        <span><strong>Sentiment:</strong> {html.escape(cluster.sentiment_direction.title())}</span>
+                    </div>
+                </div>
+            </div>
+            {trend_html}
+            <div class="ops-structured-card__grid">
+                <div>
+                    <h4>Reported problems</h4>
+                    {problem_html}
+                </div>
+                <div>
+                    <h4>Evidence</h4>
+                    {evidence_html}
+                </div>
+                <div>
+                    <h4>Recommended actions</h4>
+                    {action_html}
+                </div>
+            </div>
         </section>
         """,
         unsafe_allow_html=True,
     )
-    left, right = st.columns(2)
-    with left:
-        _render_text_list(cluster.problem_patterns, "No detailed problem patterns were returned.", heading="Reported problems")
-        _render_text_list(cluster.evidence_quotes, "No evidence quotes were returned.", heading="Evidence")
-    with right:
-        _render_text_list(cluster.recommended_actions, "No recommended actions were returned.", heading="Recommended actions")
 
 
 
 def _render_positive_signal(signal) -> None:
-    title = html.escape(signal.label)
-    why = html.escape(signal.why_it_matters or "No explanation returned.")
+    evidence_html = _list_html(signal.evidence_quotes, "No evidence quotes were returned.")
+    preservation_html = _list_html(
+        signal.recommended_preservation_actions,
+        "No preservation actions were returned.",
+    )
     st.markdown(
         f"""
-        <section class="ops-summary-card ops-positive-card">
-            <h3>{title}</h3>
-            <p><strong>Frequency:</strong> {signal.frequency}</p>
-            <p>{why}</p>
+        <section class="ops-summary-card ops-structured-card ops-positive-card">
+            <div class="ops-structured-card__header">
+                <div>
+                    <h3>{html.escape(signal.label)}</h3>
+                    <div class="ops-structured-card__meta">
+                        <span><strong>Frequency:</strong> {signal.frequency}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="ops-summary-inline-note">{html.escape(signal.why_it_matters or 'No explanation returned.')}</div>
+            <div class="ops-structured-card__grid">
+                <div>
+                    <h4>Evidence</h4>
+                    {evidence_html}
+                </div>
+                <div>
+                    <h4>What to preserve or scale</h4>
+                    {preservation_html}
+                </div>
+            </div>
         </section>
         """,
         unsafe_allow_html=True,
     )
-    left, right = st.columns(2)
-    with left:
-        _render_text_list(signal.evidence_quotes, "No evidence quotes were returned.", heading="Evidence")
-    with right:
-        _render_text_list(
-            signal.recommended_preservation_actions,
-            "No preservation actions were returned.",
-            heading="What to preserve or scale",
-        )
 
 
 
 def _render_text_list(items: list[str], empty_message: str, *, heading: str | None = None, css_class: str = "ops-summary-subcard") -> None:
     title_html = f"<h3>{html.escape(heading)}</h3>" if heading else ""
-    if items:
-        list_items = "".join(f"<li>{html.escape(item)}</li>" for item in items)
-    else:
-        list_items = f"<li>{html.escape(empty_message)}</li>"
+    list_items = _list_html(items, empty_message)
     st.markdown(
         f"""
         <section class="{css_class}">
             {title_html}
-            <ul>{list_items}</ul>
+            {list_items}
         </section>
         """,
         unsafe_allow_html=True,
     )
+
+
+
+def _list_html(items: list[str], empty_message: str) -> str:
+    if items:
+        list_items = "".join(f"<li>{html.escape(item)}</li>" for item in items)
+    else:
+        list_items = f"<li>{html.escape(empty_message)}</li>"
+    return f"<ul>{list_items}</ul>"

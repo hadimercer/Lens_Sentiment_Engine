@@ -5,6 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import json
 import logging
+import re
 import time
 from typing import Optional
 
@@ -235,12 +236,40 @@ def _should_retry_with_max_completion_tokens(error: Exception) -> bool:
 
 
 def _clean_list(value: object) -> list[str]:
+    if isinstance(value, str):
+        items = _extract_list_items(value)
+        return items if items else _normalize_plain_strings([value])
     if not isinstance(value, list):
         return []
+
+    flattened: list[str] = []
+    for item in value:
+        if isinstance(item, str):
+            extracted = _extract_list_items(item)
+            if extracted:
+                flattened.extend(extracted)
+            else:
+                flattened.append(item)
+        else:
+            flattened.append(str(item or ""))
+    return _normalize_plain_strings(flattened)
+
+
+
+def _extract_list_items(text: str) -> list[str]:
+    li_matches = re.findall(r"<li[^>]*>(.*?)</li>", text, flags=re.IGNORECASE | re.DOTALL)
+    if li_matches:
+        cleaned = [re.sub(r"<[^>]+>", "", match).strip() for match in li_matches]
+        return [item for item in cleaned if item]
+    return []
+
+
+
+def _normalize_plain_strings(values: list[str]) -> list[str]:
     cleaned: list[str] = []
     seen: set[str] = set()
-    for item in value:
-        text = str(item or "").strip()
+    for value in values:
+        text = re.sub(r"<[^>]+>", "", str(value or "")).strip()
         if not text:
             continue
         lowered = text.lower()

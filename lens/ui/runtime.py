@@ -214,6 +214,15 @@ def apply_theme() -> None:
       }}
       .ops-summary-subcard h3 {{ margin: 0 0 0.45rem 0; color: {TOKENS['text']}; font-size: 0.96rem; }}
       .ops-cluster-card, .ops-positive-card {{ margin-bottom: 0.75rem; }}
+      .ops-structured-card {{ margin-bottom: 1rem; }}
+      .ops-structured-card__header h3 {{ margin: 0; color: {TOKENS['text']}; font-size: 1.02rem; }}
+      .ops-structured-card__meta {{ margin-top: 0.45rem; display: flex; flex-wrap: wrap; gap: 0.8rem; color: {TOKENS['text_soft']}; font-size: 0.84rem; }}
+      .ops-structured-card__grid {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.85rem; margin-top: 0.95rem; }}
+      .ops-structured-card__grid h4 {{ margin: 0 0 0.45rem 0; color: {TOKENS['text']}; font-size: 0.92rem; }}
+      .ops-summary-inline-note {{ margin-top: 0.75rem; color: {TOKENS['text_muted']}; line-height: 1.5; }}
+      @media (max-width: 900px) {{
+        .ops-structured-card__grid {{ grid-template-columns: 1fr; }}
+      }}
       .ops-sop ol {{ margin: 0.35rem 0 0 1rem; padding-left: 0.5rem; }}
       .ops-status strong {{ color: {TOKENS['text']}; }}
       .ops-status.demo {{ background: linear-gradient(180deg, rgba(233,166,58,0.12), rgba(17,34,44,0.98)); }}
@@ -411,5 +420,6 @@ def render_bootstrap_status(ok: bool, message: str) -> None:
 
 def render_empty_state(message: str) -> None:
     st.markdown(f'<div class="ops-empty">{html.escape(message)}</div>', unsafe_allow_html=True)
+
 
 

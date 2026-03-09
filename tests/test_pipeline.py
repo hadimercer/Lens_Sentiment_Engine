@@ -2,7 +2,7 @@
 import unittest
 from unittest.mock import patch
 
-from lens.pipeline.api_client import APIClient, LLMProvider
+from lens.pipeline.api_client import APIClient, LLMProvider, _clean_list
 from lens.pipeline.models import BatchInput, ContextProfile, PriorCycleContext
 from lens.pipeline.runner import run_pipeline
 
@@ -19,6 +19,13 @@ class FakeProvider(LLMProvider):
 
 
 class PipelineTests(unittest.TestCase):
+    def test_clean_list_extracts_html_list_items(self):
+        cleaned = _clean_list("<ul><li>Fix billing workflow.</li><li>Protect fast support response.</li></ul>")
+
+        self.assertEqual(
+            cleaned,
+            ["Fix billing workflow.", "Protect fast support response."],
+        )
     def test_api_client_retries_after_malformed_json(self):
         provider = FakeProvider([
             "not-json",
@@ -199,3 +206,4 @@ class PipelineTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
