@@ -469,5 +469,43 @@ def export_analysis_csv(analysis_id: str) -> str:
 
 
 
+def _normalize_summary_list(value) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return _normalize_plain_strings(_extract_list_items(value) or [value])
+    if isinstance(value, list):
+        flattened: list[str] = []
+        for item in value:
+            if isinstance(item, str):
+                extracted = _extract_list_items(item)
+                flattened.extend(extracted or [item])
+            elif item is not None:
+                flattened.append(str(item))
+        return _normalize_plain_strings(flattened)
+    return _normalize_plain_strings([str(value)])
+
+
+def _extract_list_items(text: str) -> list[str]:
+    matches = re.findall(r"<li>(.*?)</li>", text, flags=re.IGNORECASE | re.DOTALL)
+    if matches:
+        normalized: list[str] = []
+        for match in matches:
+            cleaned = re.sub(r"<.*?>", "", match).strip()
+            if cleaned:
+                normalized.append(cleaned)
+        return normalized
+    return []
+
+
+def _normalize_plain_strings(values: list[str]) -> list[str]:
+    normalized: list[str] = []
+    for value in values:
+        cleaned = re.sub(r"<.*?>", "", str(value)).strip()
+        if cleaned:
+            normalized.append(cleaned)
+    return normalized
+
+
 def _database_ready() -> bool:
     return bool(get_settings().database_url)
