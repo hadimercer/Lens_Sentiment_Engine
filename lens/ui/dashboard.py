@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import re
 
 import streamlit as st
 
@@ -25,9 +26,6 @@ def render_dashboard(analysis: StoredAnalysis, *, historical: bool = False) -> N
     st.markdown(f"## {analysis.batch_label}")
     st.caption(f"Analysis ID: {analysis.analysis_id} | Domain: {analysis.domain_tag or 'untagged'} | Records: {analysis.record_count}")
 
-    st.markdown("### Executive summary")
-    _render_summary_brief(analysis)
-
     render_metric_strip(
         [
             {
@@ -47,6 +45,9 @@ def render_dashboard(analysis: StoredAnalysis, *, historical: bool = False) -> N
             },
         ]
     )
+
+    st.markdown("### Executive summary")
+    _render_summary_brief(analysis)
 
     if analysis.series_name and analysis.prior_cycle_context:
         render_series_context_panel(analysis)
@@ -82,10 +83,9 @@ def _render_summary_brief(analysis: StoredAnalysis) -> None:
     )
 
     st.markdown("### Priority actions")
-    _render_text_list(
+    _render_list_card(
         analysis.priority_actions,
         "No priority actions were returned for this analysis.",
-        css_class="ops-summary-card",
     )
 
     st.markdown("### Issue clusters")
@@ -93,14 +93,14 @@ def _render_summary_brief(analysis: StoredAnalysis) -> None:
         for cluster in analysis.issue_clusters:
             _render_issue_cluster(cluster)
     else:
-        _render_text_list([], "No issue clusters were returned for this analysis.", css_class="ops-summary-card")
+        _render_list_card([], "No issue clusters were returned for this analysis.")
 
     st.markdown("### Positive signals")
     if analysis.positive_signals:
         for signal in analysis.positive_signals:
             _render_positive_signal(signal)
     else:
-        _render_text_list([], "No positive signals were returned for this analysis.", css_class="ops-summary-card")
+        _render_list_card([], "No positive signals were returned for this analysis.")
 
 
 
@@ -144,33 +144,33 @@ def _render_positive_signal(signal) -> None:
             )
 
 
-
-def _render_text_list(items: list[str], empty_message: str, *, heading: str | None = None, css_class: str = "ops-summary-subcard") -> None:
-    title_html = f"<h3>{html.escape(heading)}</h3>" if heading else ""
-    list_items = _list_html(items, empty_message)
-    st.markdown(
-        f"""
-        <section class="{css_class}">
-            {title_html}
-            {list_items}
-        </section>
-        """,
-        unsafe_allow_html=True,
-    )
+def _render_list_card(items: list[str], empty_message: str) -> None:
+    with st.container(border=True):
+        _render_markdown_list(items, empty_message)
 
 
 
 def _render_markdown_list(items: list[str], empty_message: str) -> None:
-    if items:
-        st.markdown("\n".join(f"- {item}" for item in items))
+    normalized = _normalize_list_items(items)
+    if normalized:
+        st.markdown("\n".join(f"- {item}" for item in normalized))
     else:
         st.markdown(f"- {empty_message}")
 
 
 
-def _list_html(items: list[str], empty_message: str) -> str:
-    if items:
-        list_items = "".join(f"<li>{html.escape(item)}</li>" for item in items)
-    else:
-        list_items = f"<li>{html.escape(empty_message)}</li>"
-    return f"<ul>{list_items}</ul>"
+def _normalize_list_items(items: list[str]) -> list[str]:
+    normalized: list[str] = []
+    for item in items:
+        text = str(item).strip()
+        matches = re.findall(r"<li>(.*?)</li>", text, flags=re.IGNORECASE | re.DOTALL)
+        if matches:
+            for match in matches:
+                cleaned = re.sub(r"<.*?>", "", match).strip()
+                if cleaned:
+                    normalized.append(cleaned)
+            continue
+        cleaned = re.sub(r"<.*?>", "", text).strip()
+        if cleaned:
+            normalized.append(cleaned)
+    return normalized
