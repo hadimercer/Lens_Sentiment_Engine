@@ -75,9 +75,30 @@ class PipelineTests(unittest.TestCase):
 
             def generate_summary(self, prompt: str):
                 return {
-                    "executive_summary": "Positive summary",
+                    "executive_summary": "Support sentiment is strong overall. Teams describe response speed as the key reason trust is holding.",
                     "key_takeaways": ["Support quality was the strongest signal."],
                     "priority_actions": ["Keep the support playbook consistent."],
+                    "issue_clusters": [
+                        {
+                            "label": "Support handoffs",
+                            "severity": "low",
+                            "frequency": 1,
+                            "sentiment_direction": "positive",
+                            "problem_patterns": ["Fast response times are driving confidence."],
+                            "evidence_quotes": ["Support was quick"],
+                            "recommended_actions": ["Preserve current staffing coverage."],
+                            "trend_note": None,
+                        }
+                    ],
+                    "positive_signals": [
+                        {
+                            "label": "Responsive support",
+                            "frequency": 1,
+                            "why_it_matters": "Fast responses are sustaining user confidence.",
+                            "evidence_quotes": ["Support was quick"],
+                            "recommended_preservation_actions": ["Protect rapid-response coverage."],
+                        }
+                    ],
                 }
 
         batch = BatchInput(
@@ -95,12 +116,13 @@ class PipelineTests(unittest.TestCase):
 
         self.assertEqual(captured["model"], "gpt-4o-mini")
         self.assertEqual(result.record_count, 1)
-        self.assertEqual(result.key_takeaways, ["Support quality was the strongest signal."])
+        self.assertEqual(result.priority_actions, ["Keep the support playbook consistent."])
+        self.assertEqual(result.positive_signals[0].label, "Responsive support")
 
     def test_run_pipeline_builds_analysis_result(self):
         provider = FakeProvider([
-            json.dumps({"sentiment_label": "positive", "confidence_score": 0.9, "reasoning": "Positive tone."}),
-            json.dumps({"sentiment_label": "negative", "confidence_score": 0.8, "reasoning": "Negative tone."}),
+            json.dumps({"sentiment_label": "positive", "confidence_score": 0.9, "reasoning": "Customers praise fast support."}),
+            json.dumps({"sentiment_label": "negative", "confidence_score": 0.8, "reasoning": "Customers report delayed support handoffs."}),
             json.dumps(
                 {
                     "themes": [
@@ -115,14 +137,34 @@ class PipelineTests(unittest.TestCase):
             ),
             json.dumps(
                 {
-                    "executive_summary": "Mixed sentiment with support as the main theme.",
-                    "key_takeaways": [
-                        "Support quality remains the dominant topic.",
-                        "The batch contains both praise and friction.",
-                    ],
+                    "executive_summary": "Support quality is the core operational signal in this batch. Positive comments highlight fast responses, while negative comments point to slower handoffs that create friction.\n\nThe net picture is mixed, which means the team should protect the fast-response behavior while fixing the inconsistent escalation path.",
                     "priority_actions": [
                         "Audit slower support handoffs.",
                         "Preserve quick-response practices.",
+                    ],
+                    "issue_clusters": [
+                        {
+                            "label": "Support handoff delays",
+                            "severity": "high",
+                            "frequency": 1,
+                            "sentiment_direction": "negative",
+                            "problem_patterns": [
+                                "Some users are waiting too long for ownership to transfer.",
+                                "Resolution slows when tickets move between teams.",
+                            ],
+                            "evidence_quotes": ["Support was slow"],
+                            "recommended_actions": ["Map the escalation path and remove transfer delays."],
+                            "trend_note": "This issue is more visible than in the prior cycle.",
+                        }
+                    ],
+                    "positive_signals": [
+                        {
+                            "label": "Fast first response",
+                            "frequency": 1,
+                            "why_it_matters": "Quick first contact is sustaining trust even when later stages slip.",
+                            "evidence_quotes": ["Support was quick"],
+                            "recommended_preservation_actions": ["Protect the current first-response staffing model."],
+                        }
                     ],
                 }
             ),
@@ -149,8 +191,9 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(result.record_count, 2)
         self.assertEqual(result.prior_cycle_ref, "prior-id")
         self.assertEqual(result.themes[0].label, "support quality")
-        self.assertTrue(result.executive_summary.startswith("Mixed sentiment"))
-        self.assertEqual(result.key_takeaways[0], "Support quality remains the dominant topic.")
+        self.assertTrue(result.executive_summary.startswith("Support quality"))
+        self.assertEqual(result.issue_clusters[0].label, "Support handoff delays")
+        self.assertEqual(result.positive_signals[0].label, "Fast first response")
         self.assertEqual(result.priority_actions[0], "Audit slower support handoffs.")
 
 

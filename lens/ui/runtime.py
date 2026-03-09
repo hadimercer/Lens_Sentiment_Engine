@@ -203,8 +203,17 @@ def apply_theme() -> None:
       .ops-note h3, .ops-sop h3, .ops-summary-card h3 {{ margin: 0 0 0.45rem 0; color: {TOKENS['text']}; font-size: 1.05rem; }}
       .ops-note p, .ops-sop p, .ops-sop li, .ops-note div, .ops-summary-paragraph p, .ops-summary-card li {{ color: {TOKENS['text_muted']}; line-height: 1.5; }}
       .ops-summary-paragraph p {{ margin: 0; font-size: 0.98rem; }}
-      .ops-summary-card ul {{ margin: 0.1rem 0 0 1rem; padding-left: 0.35rem; }}
-      .ops-summary-card li + li {{ margin-top: 0.4rem; }}
+      .ops-summary-card ul, .ops-summary-subcard ul {{ margin: 0.1rem 0 0 1rem; padding-left: 0.35rem; }}
+      .ops-summary-card li + li, .ops-summary-subcard li + li {{ margin-top: 0.4rem; }}
+      .ops-summary-subcard {{
+        border: 1px solid {TOKENS['border']};
+        border-radius: {TOKENS['radius_m']};
+        background: rgba(17,34,44,0.72);
+        padding: 0.85rem 0.9rem 0.8rem 0.9rem;
+        margin-bottom: 0.8rem;
+      }}
+      .ops-summary-subcard h3 {{ margin: 0 0 0.45rem 0; color: {TOKENS['text']}; font-size: 0.96rem; }}
+      .ops-cluster-card, .ops-positive-card {{ margin-bottom: 0.75rem; }}
       .ops-sop ol {{ margin: 0.35rem 0 0 1rem; padding-left: 0.5rem; }}
       .ops-status strong {{ color: {TOKENS['text']}; }}
       .ops-status.demo {{ background: linear-gradient(180deg, rgba(233,166,58,0.12), rgba(17,34,44,0.98)); }}
@@ -402,4 +411,5 @@ def render_bootstrap_status(ok: bool, message: str) -> None:
 
 def render_empty_state(message: str) -> None:
     st.markdown(f'<div class="ops-empty">{html.escape(message)}</div>', unsafe_allow_html=True)
+
 

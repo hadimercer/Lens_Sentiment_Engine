@@ -14,7 +14,14 @@ from psycopg2.extras import Json, execute_values
 from lens.config import get_settings
 from lens.db import get_connection
 from lens.pipeline.anomaly import run_anomaly_detection
-from lens.pipeline.models import AnalysisResult, ContextProfile, PriorCycleContext, ThemeResult
+from lens.pipeline.models import (
+    AnalysisResult,
+    ContextProfile,
+    IssueCluster,
+    PositiveSignal,
+    PriorCycleContext,
+    ThemeResult,
+)
 
 from .models import HistoryFilters, HistoryListItem, StoredAnalysis, StoredRecord
 
@@ -361,6 +368,31 @@ def load_analysis(analysis_id: str) -> StoredAnalysis:
     summary_details = analysis_row.get("summary_details") or {}
     key_takeaways = list(summary_details.get("key_takeaways") or [])
     priority_actions = list(summary_details.get("priority_actions") or [])
+    issue_clusters = [
+        IssueCluster(
+            label=str(cluster.get("label") or "Operational issue"),
+            severity=str(cluster.get("severity") or "medium"),
+            frequency=int(cluster.get("frequency") or 0),
+            sentiment_direction=str(cluster.get("sentiment_direction") or "neutral"),
+            problem_patterns=list(cluster.get("problem_patterns") or []),
+            evidence_quotes=list(cluster.get("evidence_quotes") or []),
+            recommended_actions=list(cluster.get("recommended_actions") or []),
+            trend_note=cluster.get("trend_note"),
+        )
+        for cluster in list(summary_details.get("issue_clusters") or [])
+        if isinstance(cluster, dict)
+    ]
+    positive_signals = [
+        PositiveSignal(
+            label=str(signal.get("label") or "Positive signal"),
+            frequency=int(signal.get("frequency") or 0),
+            why_it_matters=str(signal.get("why_it_matters") or ""),
+            evidence_quotes=list(signal.get("evidence_quotes") or []),
+            recommended_preservation_actions=list(signal.get("recommended_preservation_actions") or []),
+        )
+        for signal in list(summary_details.get("positive_signals") or [])
+        if isinstance(signal, dict)
+    ]
 
     reasoning_by_id = {
         record.get("record_id"): record.get("reasoning")
@@ -398,6 +430,8 @@ def load_analysis(analysis_id: str) -> StoredAnalysis:
         executive_summary=analysis_row["executive_summary"],
         key_takeaways=key_takeaways,
         priority_actions=priority_actions,
+        issue_clusters=issue_clusters,
+        positive_signals=positive_signals,
         anomaly_flags=[],
         anomaly_count=analysis_row["anomaly_count"],
         context_profile=context_profile,
@@ -436,4 +470,3 @@ def export_analysis_csv(analysis_id: str) -> str:
 
 def _database_ready() -> bool:
     return bool(get_settings().database_url)
-

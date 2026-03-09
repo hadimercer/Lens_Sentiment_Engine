@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 SENTIMENT_MAX_TOKENS = 120
 THEME_MAX_TOKENS = 1200
-SUMMARY_MAX_TOKENS = 900
+SUMMARY_MAX_TOKENS = 2200
 
 
 class APIError(Exception):
@@ -185,6 +185,8 @@ class APIClient:
             "executive_summary": "Summary unavailable - pipeline error during summary generation.",
             "key_takeaways": [],
             "priority_actions": [],
+            "issue_clusters": [],
+            "positive_signals": [],
         }
         result = self._call(
             user_message=prompt,
@@ -195,13 +197,16 @@ class APIClient:
             return fallback
 
         executive_summary = str(result.get("executive_summary") or fallback["executive_summary"]).strip() or fallback["executive_summary"]
-        key_takeaways = _clean_list(result.get("key_takeaways"))
         priority_actions = _clean_list(result.get("priority_actions"))
+        issue_clusters = _clean_issue_clusters(result.get("issue_clusters"))
+        positive_signals = _clean_positive_signals(result.get("positive_signals"))
 
         return {
             "executive_summary": executive_summary,
-            "key_takeaways": key_takeaways,
+            "key_takeaways": _clean_list(result.get("key_takeaways")),
             "priority_actions": priority_actions,
+            "issue_clusters": issue_clusters,
+            "positive_signals": positive_signals,
         }
 
 
@@ -221,3 +226,65 @@ def _clean_list(value: object) -> list[str]:
         seen.add(lowered)
         cleaned.append(text)
     return cleaned
+
+
+
+def _clean_issue_clusters(value: object) -> list[dict]:
+    if not isinstance(value, list):
+        return []
+
+    validated: list[dict] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        severity = str(item.get("severity") or "medium").strip().lower()
+        if severity not in {"high", "medium", "low"}:
+            severity = "medium"
+        sentiment_direction = str(item.get("sentiment_direction") or "neutral").strip().lower()
+        if sentiment_direction not in {"positive", "neutral", "negative"}:
+            sentiment_direction = "neutral"
+        try:
+            frequency = int(item.get("frequency", 0))
+        except (TypeError, ValueError):
+            frequency = 0
+        label = str(item.get("label") or "Operational issue").strip()
+        validated.append(
+            {
+                "label": label,
+                "severity": severity,
+                "frequency": max(0, frequency),
+                "sentiment_direction": sentiment_direction,
+                "problem_patterns": _clean_list(item.get("problem_patterns")),
+                "evidence_quotes": _clean_list(item.get("evidence_quotes"))[:3],
+                "recommended_actions": _clean_list(item.get("recommended_actions")),
+                "trend_note": str(item.get("trend_note") or "").strip() or None,
+            }
+        )
+    return validated
+
+
+
+def _clean_positive_signals(value: object) -> list[dict]:
+    if not isinstance(value, list):
+        return []
+
+    validated: list[dict] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        try:
+            frequency = int(item.get("frequency", 0))
+        except (TypeError, ValueError):
+            frequency = 0
+        label = str(item.get("label") or "Positive signal").strip()
+        why_it_matters = str(item.get("why_it_matters") or "").strip()
+        validated.append(
+            {
+                "label": label,
+                "frequency": max(0, frequency),
+                "why_it_matters": why_it_matters,
+                "evidence_quotes": _clean_list(item.get("evidence_quotes"))[:3],
+                "recommended_preservation_actions": _clean_list(item.get("recommended_preservation_actions")),
+            }
+        )
+    return validated

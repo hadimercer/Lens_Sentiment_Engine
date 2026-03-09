@@ -102,6 +102,27 @@ class ThemeResult:
 
 
 @dataclass
+class IssueCluster:
+    label: str
+    severity: str
+    frequency: int
+    sentiment_direction: str
+    problem_patterns: list[str]
+    evidence_quotes: list[str]
+    recommended_actions: list[str]
+    trend_note: Optional[str] = None
+
+
+@dataclass
+class PositiveSignal:
+    label: str
+    frequency: int
+    why_it_matters: str
+    evidence_quotes: list[str]
+    recommended_preservation_actions: list[str]
+
+
+@dataclass
 class AnomalyFlag:
     anomaly_type: str
     record_id: Optional[str]
@@ -122,6 +143,8 @@ class AnalysisResult:
     executive_summary: str
     key_takeaways: list[str]
     priority_actions: list[str]
+    issue_clusters: list[IssueCluster]
+    positive_signals: list[PositiveSignal]
     anomaly_flags: list[AnomalyFlag]
     sentiment_split: dict
     anomaly_count: int
@@ -156,6 +179,29 @@ class AnalysisResult:
             "summary_details": {
                 "key_takeaways": self.key_takeaways,
                 "priority_actions": self.priority_actions,
+                "issue_clusters": [
+                    {
+                        "label": cluster.label,
+                        "severity": cluster.severity,
+                        "frequency": cluster.frequency,
+                        "sentiment_direction": cluster.sentiment_direction,
+                        "problem_patterns": cluster.problem_patterns,
+                        "evidence_quotes": cluster.evidence_quotes,
+                        "recommended_actions": cluster.recommended_actions,
+                        "trend_note": cluster.trend_note,
+                    }
+                    for cluster in self.issue_clusters
+                ],
+                "positive_signals": [
+                    {
+                        "label": signal.label,
+                        "frequency": signal.frequency,
+                        "why_it_matters": signal.why_it_matters,
+                        "evidence_quotes": signal.evidence_quotes,
+                        "recommended_preservation_actions": signal.recommended_preservation_actions,
+                    }
+                    for signal in self.positive_signals
+                ],
             },
             "anomaly_count": self.anomaly_count,
             "context_profile": {

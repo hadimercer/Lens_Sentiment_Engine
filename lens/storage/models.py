@@ -7,7 +7,16 @@ from datetime import date, datetime
 from typing import Optional
 
 from lens.pipeline.anomaly import run_anomaly_detection
-from lens.pipeline.models import AnalysisResult, AnomalyFlag, ContextProfile, PriorCycleContext, RecordResult, ThemeResult
+from lens.pipeline.models import (
+    AnalysisResult,
+    AnomalyFlag,
+    ContextProfile,
+    IssueCluster,
+    PositiveSignal,
+    PriorCycleContext,
+    RecordResult,
+    ThemeResult,
+)
 
 
 @dataclass
@@ -64,6 +73,8 @@ class StoredAnalysis:
     executive_summary: str
     key_takeaways: list[str]
     priority_actions: list[str]
+    issue_clusters: list[IssueCluster]
+    positive_signals: list[PositiveSignal]
     anomaly_flags: list[AnomalyFlag]
     anomaly_count: int
     context_profile: Optional[ContextProfile]
@@ -101,6 +112,8 @@ class StoredAnalysis:
             executive_summary=result.executive_summary,
             key_takeaways=result.key_takeaways,
             priority_actions=result.priority_actions,
+            issue_clusters=result.issue_clusters,
+            positive_signals=result.positive_signals,
             anomaly_flags=result.anomaly_flags,
             anomaly_count=result.anomaly_count,
             context_profile=result.context_profile,

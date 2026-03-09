@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-from lens.pipeline.models import AnalysisResult, ContextProfile, RecordResult, ThemeResult
+from lens.pipeline.models import AnalysisResult, ContextProfile, IssueCluster, PositiveSignal, RecordResult, ThemeResult
 from lens.storage.models import StoredAnalysis
 from lens.storage.service import bootstrap_database, delete_analysis, save_analysis
 
@@ -125,8 +125,29 @@ class StorageTests(unittest.TestCase):
             sentiment_split={"positive": 100.0, "neutral": 0.0, "negative": 0.0},
             themes=[],
             executive_summary="summary",
-            key_takeaways=["Customers praised service speed."],
+            key_takeaways=[],
             priority_actions=["Keep the current service playbook in place."],
+            issue_clusters=[
+                IssueCluster(
+                    label="Service quality",
+                    severity="low",
+                    frequency=1,
+                    sentiment_direction="positive",
+                    problem_patterns=["Fast service is the dominant pattern."],
+                    evidence_quotes=["Great service"],
+                    recommended_actions=["Protect current service standards."],
+                    trend_note=None,
+                )
+            ],
+            positive_signals=[
+                PositiveSignal(
+                    label="Service speed",
+                    frequency=1,
+                    why_it_matters="Customers keep mentioning response speed.",
+                    evidence_quotes=["Great service"],
+                    recommended_preservation_actions=["Keep the current response model."],
+                )
+            ],
             anomaly_flags=[],
             anomaly_count=0,
             context_profile=None,
@@ -152,8 +173,29 @@ class StorageTests(unittest.TestCase):
                 ],
                 themes=[ThemeResult(label="service", frequency=1, dominant_sentiment="positive", representative_quotes=["Great service"])],
                 executive_summary="summary",
-                key_takeaways=["Customers praised service speed."],
+                key_takeaways=[],
                 priority_actions=["Keep the current service playbook in place."],
+                issue_clusters=[
+                    IssueCluster(
+                        label="Service quality",
+                        severity="low",
+                        frequency=1,
+                        sentiment_direction="positive",
+                        problem_patterns=["Fast service is the dominant pattern."],
+                        evidence_quotes=["Great service"],
+                        recommended_actions=["Protect current service standards."],
+                        trend_note=None,
+                    )
+                ],
+                positive_signals=[
+                    PositiveSignal(
+                        label="Service speed",
+                        frequency=1,
+                        why_it_matters="Customers keep mentioning response speed.",
+                        evidence_quotes=["Great service"],
+                        recommended_preservation_actions=["Keep the current response model."],
+                    )
+                ],
                 anomaly_flags=[],
                 sentiment_split={"positive": 100.0, "neutral": 0.0, "negative": 0.0},
                 anomaly_count=0,
@@ -222,4 +264,3 @@ class StorageTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

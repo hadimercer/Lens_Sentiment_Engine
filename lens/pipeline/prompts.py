@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Optional
 
 from .models import ContextProfile, PriorCycleContext
@@ -85,17 +86,11 @@ def build_theme_prompt(records: list[str], context: Optional[ContextProfile] = N
 
 
 def build_summary_prompt(
-    sentiment_split: dict,
-    top_themes: list[str],
+    summary_evidence: dict,
     context: Optional[ContextProfile] = None,
     prior_cycle: Optional[PriorCycleContext] = None,
     batch_label: str = "",
 ) -> str:
-    pos = sentiment_split.get("positive", 0)
-    neu = sentiment_split.get("neutral", 0)
-    neg = sentiment_split.get("negative", 0)
-    themes_str = ", ".join(top_themes[:5]) or "No dominant themes identified"
-
     context_block = ""
     if context and not context.is_empty():
         context_block = f"\nContext: {context.to_prompt_block()}\n"
@@ -103,22 +98,45 @@ def build_summary_prompt(
     longitudinal_instruction = ""
     if prior_cycle:
         longitudinal_instruction = (
-            "\nIMPORTANT: This run belongs to a series with prior history. Your summary must explicitly reference directional change, "
-            "whether key themes are emerging, persistent, or resolved, and whether sentiment improved, declined, or held steady."
+            "\nIMPORTANT: This run belongs to a series with prior history. Explicitly describe directional change, "
+            "what deteriorated, what improved, what remained persistent, and which actions should be accelerated or protected."
         )
 
     return (
-        "Write an executive summary for a business text analysis.\n"
+        "Write an operational brief for a business text analysis.\n"
         f"{context_block}"
-        f"Batch label: {batch_label or 'Unnamed batch'}\n"
-        f"Sentiment split: {pos:.0f}% positive, {neu:.0f}% neutral, {neg:.0f}% negative\n"
-        f"Top themes: {themes_str}\n"
+        f"Batch label for reference only: {batch_label or 'Unnamed batch'}\n"
+        "Do not repeat the batch label or title in the opening sentence.\n"
+        "Your job is to help an operations manager understand what to research, fix, protect, or replicate next.\n"
+        "Be concrete about the kinds of issues being reported, not just the topic labels.\n"
+        "Treat positive patterns as operational signals too: surface what is working, why it matters, and what should be preserved or scaled.\n"
         f"{longitudinal_instruction}\n\n"
-        "Return JSON with an executive paragraph plus ordered bullet lists. "
-        "The bullet lists must include all materially distinct takeaways and all materially important actions needed to understand and act on the batch. "
-        "Do not pad the lists with filler or repeated points. Keep items concise, specific, and ordered by importance.\n\n"
-        "Respond with JSON matching exactly this schema:\n"
-        '{"executive_summary": "Short executive paragraph.", '
-        '"key_takeaways": ["Most important takeaway", "Next takeaway"], '
-        '"priority_actions": ["Highest priority action", "Next action"]}'
+        "Use this evidence bundle as your factual basis:\n"
+        f"{json.dumps(summary_evidence, ensure_ascii=True, indent=2)}\n\n"
+        "Return JSON matching exactly this schema:\n"
+        '{'
+        '"executive_summary": "2 to 4 short paragraphs with no title repetition in the opening sentence.", '
+        '"priority_actions": ["Distinct operational action", "Next action"], '
+        '"issue_clusters": ['
+        '{'
+        '"label": "str", '
+        '"severity": "high|medium|low", '
+        '"frequency": 0, '
+        '"sentiment_direction": "positive|neutral|negative", '
+        '"problem_patterns": ["specific issue type"], '
+        '"evidence_quotes": ["short quote"], '
+        '"recommended_actions": ["specific action"], '
+        '"trend_note": "str or null"'
+        '}'
+        '], '
+        '"positive_signals": ['
+        '{'
+        '"label": "str", '
+        '"frequency": 0, '
+        '"why_it_matters": "str", '
+        '"evidence_quotes": ["short quote"], '
+        '"recommended_preservation_actions": ["specific preservation action"]'
+        '}'
+        ']'
+        '}'
     )

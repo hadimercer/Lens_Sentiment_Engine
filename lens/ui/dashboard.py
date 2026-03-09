@@ -17,18 +17,15 @@ from .panels import (
     render_theme_table,
     render_timeline_panel,
 )
-from .runtime import render_metric_strip, render_note_panel, render_section_header
+from .runtime import render_metric_strip, render_section_header
+
 
 
 def render_dashboard(analysis: StoredAnalysis, *, historical: bool = False) -> None:
     st.markdown(f"## {analysis.batch_label}")
     st.caption(f"Analysis ID: {analysis.analysis_id} | Domain: {analysis.domain_tag or 'untagged'} | Records: {analysis.record_count}")
 
-    render_section_header(
-        "Executive summary",
-        "Use the paragraph, takeaways, and priority actions together as the fast read before you move into the charts.",
-        eyebrow="Briefing",
-    )
+    st.markdown("### Executive summary")
     _render_summary_brief(analysis)
 
     render_metric_strip(
@@ -51,11 +48,8 @@ def render_dashboard(analysis: StoredAnalysis, *, historical: bool = False) -> N
         ]
     )
 
-    if analysis.series_name:
-        render_section_header("Series context", "When this run belongs to a named series, Lens surfaces the prior-cycle context here.", eyebrow="Comparison")
+    if analysis.series_name and analysis.prior_cycle_context:
         render_series_context_panel(analysis)
-    else:
-        render_note_panel("Series context", "This analysis is not linked to a named series, so there is no prior-cycle comparison panel for this run.")
 
     render_section_header(
         "Dashboard panels",
@@ -81,37 +75,93 @@ def _render_summary_brief(analysis: StoredAnalysis) -> None:
     st.markdown(
         f"""
         <section class="ops-summary-paragraph">
-            <p>{paragraph}</p>
+            <p>{paragraph.replace(chr(10), '<br/><br/>')}</p>
         </section>
         """,
         unsafe_allow_html=True,
     )
 
-    takeaway_col, action_col = st.columns(2)
-    with takeaway_col:
-        _render_summary_card(
-            "Key takeaways",
-            analysis.key_takeaways,
-            "No specific takeaways were returned for this analysis.",
+    st.markdown("### Priority actions")
+    _render_text_list(
+        analysis.priority_actions,
+        "No priority actions were returned for this analysis.",
+        css_class="ops-summary-card",
+    )
+
+    st.markdown("### Issue clusters")
+    if analysis.issue_clusters:
+        for cluster in analysis.issue_clusters:
+            _render_issue_cluster(cluster)
+    else:
+        _render_text_list([], "No issue clusters were returned for this analysis.", css_class="ops-summary-card")
+
+    st.markdown("### Positive signals")
+    if analysis.positive_signals:
+        for signal in analysis.positive_signals:
+            _render_positive_signal(signal)
+    else:
+        _render_text_list([], "No positive signals were returned for this analysis.", css_class="ops-summary-card")
+
+
+
+def _render_issue_cluster(cluster) -> None:
+    severity = html.escape(cluster.severity.title())
+    title = html.escape(cluster.label)
+    trend = f"<p><strong>Trend note:</strong> {html.escape(cluster.trend_note)}</p>" if cluster.trend_note else ""
+    st.markdown(
+        f"""
+        <section class="ops-summary-card ops-cluster-card">
+            <h3>{title}</h3>
+            <p><strong>Severity:</strong> {severity} | <strong>Frequency:</strong> {cluster.frequency} | <strong>Sentiment:</strong> {html.escape(cluster.sentiment_direction.title())}</p>
+            {trend}
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+    left, right = st.columns(2)
+    with left:
+        _render_text_list(cluster.problem_patterns, "No detailed problem patterns were returned.", heading="Reported problems")
+        _render_text_list(cluster.evidence_quotes, "No evidence quotes were returned.", heading="Evidence")
+    with right:
+        _render_text_list(cluster.recommended_actions, "No recommended actions were returned.", heading="Recommended actions")
+
+
+
+def _render_positive_signal(signal) -> None:
+    title = html.escape(signal.label)
+    why = html.escape(signal.why_it_matters or "No explanation returned.")
+    st.markdown(
+        f"""
+        <section class="ops-summary-card ops-positive-card">
+            <h3>{title}</h3>
+            <p><strong>Frequency:</strong> {signal.frequency}</p>
+            <p>{why}</p>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+    left, right = st.columns(2)
+    with left:
+        _render_text_list(signal.evidence_quotes, "No evidence quotes were returned.", heading="Evidence")
+    with right:
+        _render_text_list(
+            signal.recommended_preservation_actions,
+            "No preservation actions were returned.",
+            heading="What to preserve or scale",
         )
-    with action_col:
-        _render_summary_card(
-            "Priority actions",
-            analysis.priority_actions,
-            "No priority actions were returned for this analysis.",
-        )
 
 
 
-def _render_summary_card(title: str, items: list[str], empty_message: str) -> None:
+def _render_text_list(items: list[str], empty_message: str, *, heading: str | None = None, css_class: str = "ops-summary-subcard") -> None:
+    title_html = f"<h3>{html.escape(heading)}</h3>" if heading else ""
     if items:
         list_items = "".join(f"<li>{html.escape(item)}</li>" for item in items)
     else:
         list_items = f"<li>{html.escape(empty_message)}</li>"
     st.markdown(
         f"""
-        <section class="ops-summary-card">
-            <h3>{html.escape(title)}</h3>
+        <section class="{css_class}">
+            {title_html}
             <ul>{list_items}</ul>
         </section>
         """,
