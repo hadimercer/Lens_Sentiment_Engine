@@ -18,7 +18,7 @@ from .panels import (
     render_theme_table,
     render_timeline_panel,
 )
-from .runtime import render_metric_strip, render_section_header
+from .runtime import render_metric_strip
 
 
 
@@ -49,25 +49,12 @@ def render_dashboard(analysis: StoredAnalysis, *, historical: bool = False) -> N
     st.markdown("### Executive summary")
     _render_summary_brief(analysis)
 
-    if analysis.series_name and analysis.prior_cycle_context:
-        render_series_context_panel(analysis)
-
-    render_section_header(
-        "Dashboard panels",
-        "Scan the top row for distribution and theme shape, then use the theme table and timeline to understand what changed and where action is required.",
-        eyebrow="Review surface",
-    )
-    sentiment_col, distribution_col, theme_col = st.columns(3)
-    with sentiment_col:
-        render_sentiment_split_chart(analysis)
-    with distribution_col:
-        render_sentiment_distribution_chart(analysis)
-    with theme_col:
-        render_theme_heatmap_chart(analysis)
-
     render_theme_table(analysis)
     render_timeline_panel(analysis)
     render_anomaly_panel(analysis, historical=historical)
+
+    if analysis.series_name and analysis.prior_cycle_context:
+        render_series_context_panel(analysis)
 
 
 
@@ -87,6 +74,14 @@ def _render_summary_brief(analysis: StoredAnalysis) -> None:
         analysis.priority_actions,
         "No priority actions were returned for this analysis.",
     )
+
+    sentiment_col, distribution_col, theme_col = st.columns(3)
+    with sentiment_col:
+        render_sentiment_split_chart(analysis)
+    with distribution_col:
+        render_sentiment_distribution_chart(analysis)
+    with theme_col:
+        render_theme_heatmap_chart(analysis)
 
     st.markdown("### Issue clusters")
     if analysis.issue_clusters:
