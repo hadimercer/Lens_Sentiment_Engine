@@ -53,15 +53,19 @@ class OpenAIChatProvider(LLMProvider):
             OpenAIAPITimeoutError = TimeoutError
             OpenAIRateLimitError = Exception
 
+        request_kwargs = {
+            "model": self.model,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+        }
+
         try:
             response = self.client.chat.completions.create(
-                model=self.model,
+                **request_kwargs,
                 max_tokens=max_tokens,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message},
-                ],
             )
             return response.choices[0].message.content or "{}"
         except OpenAIRateLimitError as error:
@@ -69,6 +73,19 @@ class OpenAIChatProvider(LLMProvider):
         except OpenAIAPITimeoutError as error:
             raise APITimeoutError(str(error)) from error
         except OpenAIAPIError as error:
+            if _should_retry_with_max_completion_tokens(error):
+                try:
+                    response = self.client.chat.completions.create(
+                        **request_kwargs,
+                        max_completion_tokens=max_tokens,
+                    )
+                    return response.choices[0].message.content or "{}"
+                except OpenAIRateLimitError as nested_error:
+                    raise RateLimitError(str(nested_error)) from nested_error
+                except OpenAIAPITimeoutError as nested_error:
+                    raise APITimeoutError(str(nested_error)) from nested_error
+                except OpenAIAPIError as nested_error:
+                    raise APIError(str(nested_error)) from nested_error
             raise APIError(str(error)) from error
 
 
@@ -208,6 +225,12 @@ class APIClient:
             "issue_clusters": issue_clusters,
             "positive_signals": positive_signals,
         }
+
+
+
+def _should_retry_with_max_completion_tokens(error: Exception) -> bool:
+    message = str(error)
+    return "Unsupported parameter: 'max_tokens'" in message and "max_completion_tokens" in message
 
 
 
