@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 from datetime import datetime, time
 from pathlib import Path
 from typing import Optional
@@ -366,18 +367,18 @@ def load_analysis(analysis_id: str) -> StoredAnalysis:
     ]
 
     summary_details = analysis_row.get("summary_details") or {}
-    key_takeaways = list(summary_details.get("key_takeaways") or [])
-    priority_actions = list(summary_details.get("priority_actions") or [])
+    key_takeaways = _normalize_summary_list(summary_details.get("key_takeaways"))
+    priority_actions = _normalize_summary_list(summary_details.get("priority_actions"))
     issue_clusters = [
         IssueCluster(
             label=str(cluster.get("label") or "Operational issue"),
             severity=str(cluster.get("severity") or "medium"),
             frequency=int(cluster.get("frequency") or 0),
             sentiment_direction=str(cluster.get("sentiment_direction") or "neutral"),
-            problem_patterns=list(cluster.get("problem_patterns") or []),
-            evidence_quotes=list(cluster.get("evidence_quotes") or []),
-            recommended_actions=list(cluster.get("recommended_actions") or []),
-            trend_note=cluster.get("trend_note"),
+            problem_patterns=_normalize_summary_list(cluster.get("problem_patterns")),
+            evidence_quotes=_normalize_summary_list(cluster.get("evidence_quotes")),
+            recommended_actions=_normalize_summary_list(cluster.get("recommended_actions")),
+            trend_note=str(cluster.get("trend_note") or "").strip() or None,
         )
         for cluster in list(summary_details.get("issue_clusters") or [])
         if isinstance(cluster, dict)
@@ -387,8 +388,8 @@ def load_analysis(analysis_id: str) -> StoredAnalysis:
             label=str(signal.get("label") or "Positive signal"),
             frequency=int(signal.get("frequency") or 0),
             why_it_matters=str(signal.get("why_it_matters") or ""),
-            evidence_quotes=list(signal.get("evidence_quotes") or []),
-            recommended_preservation_actions=list(signal.get("recommended_preservation_actions") or []),
+            evidence_quotes=_normalize_summary_list(signal.get("evidence_quotes")),
+            recommended_preservation_actions=_normalize_summary_list(signal.get("recommended_preservation_actions")),
         )
         for signal in list(summary_details.get("positive_signals") or [])
         if isinstance(signal, dict)
